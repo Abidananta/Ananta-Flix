@@ -6,5 +6,5 @@ package com.aplay.tv
  */
 object Config {
     const val DEFAULT_PLAYLIST_URL = "https://raw.githubusercontent.com/Abidananta/toffee/refs/heads/main/toffee_playlist.m3u"
-    const val DEFAULT_MATCHES_URL = ""
+    const val DEFAULT_MATCHES_URL = "https://raw.githubusercontent.com/sm-monirulislam/Upcoming-and-Live-Sports-Data/refs/heads/main/Sports_data.json"
 }
