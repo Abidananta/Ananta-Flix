@@ -45,6 +45,7 @@ import com.iptv.glass.ui.components.ChannelTileGrid
 import com.iptv.glass.ui.components.GlassChip
 import com.iptv.glass.ui.components.NexaIcon
 import com.iptv.glass.ui.components.NexaIconButton
+import com.iptv.glass.ui.components.NexaSquareIconButton
 import com.iptv.glass.ui.components.NowPlayingBar
 import com.iptv.glass.ui.components.PlayerArea
 import com.iptv.glass.ui.theme.GlassMuted
@@ -208,10 +209,10 @@ fun ChannelsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                GlassChip("All", category == "All") { viewModel.selectedCategory.value = "All" }
+                GlassChip("All", category == "All", onClick = { viewModel.selectedCategory.value = "All" })
             }
             items(categories) { (name, _) ->
-                GlassChip(name, category == name) { viewModel.selectedCategory.value = name }
+                GlassChip(name, category == name, onClick = { viewModel.selectedCategory.value = name })
             }
         }
         Spacer(Modifier.height(12.dp))

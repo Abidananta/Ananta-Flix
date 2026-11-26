@@ -343,7 +343,7 @@ fun ChannelTileGrid(
             modifier = Modifier.fillMaxSize()
         ) {
             items(channels, key = { it.id }) { channel ->
-                ChannelTile(channel = channel) { onTileClick(channel) }
+                ChannelTile(channel = channel, onClick = { onTileClick(channel) })
             }
             item { Spacer(Modifier.height(16.dp)) }
         }

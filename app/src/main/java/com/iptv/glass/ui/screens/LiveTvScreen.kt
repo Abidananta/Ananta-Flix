@@ -47,9 +47,9 @@ fun LiveTvScreen(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item { GlassChip("All", category == "All") { viewModel.selectedCategory.value = "All" } }
+            item { GlassChip("All", category == "All", onClick = { viewModel.selectedCategory.value = "All" }) }
             items(categories) { (name, count) ->
-                GlassChip("$name ($count)", category == name) { viewModel.selectedCategory.value = name }
+                GlassChip("$name ($count)", category == name, onClick = { viewModel.selectedCategory.value = name })
             }
         }
         Spacer(Modifier.height(12.dp))

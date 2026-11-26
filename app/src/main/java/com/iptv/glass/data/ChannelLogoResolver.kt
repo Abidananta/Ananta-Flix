@@ -231,19 +231,23 @@ class ChannelLogoResolver(
         }
     }
 
-    private fun loadIndexFromDisk(): Map<String, String>? = try {
-        val file = cacheFile
-        if (!file.exists()) return null
-        val json = JSONObject(file.readText())
-        val map = mutableMapOf<String, String>()
-        val keys = json.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            map[key] = json.optString(key)
+    // Block body (not an expression body): `return` is used below, and
+    // returns are not allowed inside an expression-body function.
+    private fun loadIndexFromDisk(): Map<String, String>? {
+        return try {
+            val file = cacheFile
+            if (!file.exists()) return null
+            val json = JSONObject(file.readText())
+            val map = mutableMapOf<String, String>()
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                map[key] = json.optString(key)
+            }
+            map.ifEmpty { null }
+        } catch (_: Exception) {
+            null
         }
-        map.ifEmpty { null }
-    } catch (_: Exception) {
-        null
     }
 
     private fun saveIndexToDisk(map: Map<String, String>) {
