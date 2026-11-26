@@ -1,5 +1,8 @@
 package com.aplay.tv
 
+import com.aplay.tv.ui.setAccent
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import android.app.Application
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -77,7 +80,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private var lastLoaded = 0L
 
+    var accent by mutableStateOf(Color(store.accent))
+        private set
+
+    fun updateAccent(color: Color) {
+        accent = color
+        setAccent(color)
+        store.accent = color.toArgb()
+    }
+
     init {
+        setAccent(accent)
         // First show the saved copies (instant), then check the internet.
         job = viewModelScope.launch {
             loading = true
@@ -206,7 +219,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 when {
                     name.equals("matches.txt", ignoreCase = true) ->
-                        parsePlaylistLinks(read(file.source)).forEach { (n, l) ->
+                        parsePlaylistLinks(readFile(file)).forEach { (n, l) ->
                             sources += n to (M3uParser.cleanLink(l) ?: l)
                         }
                     name.endsWith(".json", ignoreCase = true) ->
@@ -258,6 +271,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return result
     }
 
+    /** Text of links files already read in this reload, so each is downloaded once. */
+    private val fileText = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    private fun readFile(file: FolderFile): String = fileText[file.source] ?: read(file.source)
+
     /** A file of the playlists folder. [source] can be opened with [read]. */
     private class FolderFile(val path: String, val source: String)
 
@@ -294,21 +312,45 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * The playlists folder. It is read from GitHub when the app knows the repository, and the
-     * copy packed into the APK is used if GitHub cannot be reached.
+     * copy packed into the APK is used for anything GitHub cannot give.
+     *
+     * links.txt and matches.txt are fetched straight from the raw file address, which has no
+     * request limit. The folder listing (for .m3u and .json files) uses GitHub's API, which only
+     * allows a few requests an hour per network, so if it fails the packed files are used.
      */
     private fun folderFiles(): List<FolderFile> {
+        fileText.clear()
         val repo = Config.PLAYLIST_REPO.ifBlank { BuildConfig.REPO }
         val branch = Config.PLAYLIST_BRANCH.ifBlank { BuildConfig.BRANCH.ifBlank { "main" } }
-        if ('/' in repo) {
+        val packed = assetFiles().map { FolderFile(it, "asset:$it") }
+        if ('/' !in repo) return packed
+
+        val raw = "https://raw.githubusercontent.com/$repo/$branch/${Config.PLAYLIST_FOLDER}/"
+        val links = listOf("links.txt", "matches.txt").map { FolderFile(it, raw + it) }
+        val others = try {
+            remoteFiles(Config.PLAYLIST_FOLDER, repo, branch)
+                .filter { !it.path.equals("links.txt", true) && !it.path.equals("matches.txt", true) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            packed.filter {
+                !it.path.equals("links.txt", true) && !it.path.equals("matches.txt", true)
+            }
+        }
+        // A links file that cannot be read (not found, no internet) falls back to the packed one.
+        val usable = links.filter { link ->
             try {
-                return remoteFiles(Config.PLAYLIST_FOLDER, repo, branch)
+                fileText[link.source] = read(link.source)
+                true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Private repository, no internet or no saved copy: use the packed files.
+                false
             }
         }
-        return assetFiles().map { FolderFile(it, "asset:$it") }
+        val missing = links.filter { it !in usable }
+            .mapNotNull { m -> packed.firstOrNull { it.path.equals(m.path, true) } }
+        return usable + missing + others
     }
 
     /**
@@ -323,7 +365,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 when {
                     name.equals("links.txt", ignoreCase = true) ->
-                        parsePlaylistLinks(read(file.source)).forEach { (n, l) ->
+                        parsePlaylistLinks(readFile(file)).forEach { (n, l) ->
                             result += n to (M3uParser.cleanLink(l) ?: l)
                         }
                     name.equals("matches.txt", ignoreCase = true) -> Unit
@@ -348,8 +390,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val cache = File(app.filesDir, "cache_" + UUID.nameUUIDFromBytes(source.toByteArray()))
         if (savedOnly && cache.exists()) return cache.readText()
+        // GitHub's raw links are cached for minutes; a changing tail makes edits show up at once.
+        val address = if (source.contains("raw.githubusercontent.com")) {
+            source + (if ('?' in source) "&" else "?") + "t=" + System.currentTimeMillis() / 30_000
+        } else source
         return try {
-            Net.fetch(source).also { cache.writeText(it) }
+            Net.fetch(address).also { cache.writeText(it) }
         } catch (e: Exception) {
             if (cache.exists()) cache.readText() else throw e
         }

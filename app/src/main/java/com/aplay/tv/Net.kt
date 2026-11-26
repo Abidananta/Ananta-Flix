@@ -31,6 +31,8 @@ object Net {
                 return fetchWith(address, agent)
             } catch (e: IOException) {
                 failure = e
+                // A missing file will not appear under another name.
+                if (e.message?.contains("answered 404") == true) break
             }
         }
         throw failure ?: IOException("Could not load")

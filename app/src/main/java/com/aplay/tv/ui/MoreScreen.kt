@@ -1,5 +1,14 @@
 package com.aplay.tv.ui
 
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,7 +50,7 @@ import com.aplay.tv.AppViewModel
 import com.aplay.tv.BuildConfig
 import com.aplay.tv.Stream
 
-private enum class Dialog { NONE, STREAM, PLAYLISTS, MATCHES }
+private enum class Dialog { NONE, STREAM, PLAYLISTS, MATCHES, COLOR }
 
 @Composable
 fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit) {
@@ -51,6 +60,13 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Text("APPEARANCE", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        SettingRow(
+            Icons.Filled.Palette, "App color", "Pick the color of buttons, lines and highlights",
+            trailing = {
+                Box(Modifier.size(22.dp).clip(CircleShape).background(model.accent))
+            },
+        ) { dialog = Dialog.COLOR }
         Text("PLAYBACK", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         SettingRow(Icons.Filled.Link, "Network stream", "Play a link with custom headers") {
             dialog = Dialog.STREAM
@@ -95,6 +111,7 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
         )
         Dialog.PLAYLISTS -> PlaylistManagerDialog(model) { dialog = Dialog.NONE }
         Dialog.MATCHES -> MatchesDialog(model) { dialog = Dialog.NONE }
+        Dialog.COLOR -> ColorDialog(model) { dialog = Dialog.NONE }
     }
 }
 
@@ -225,5 +242,33 @@ private fun MatchesDialog(model: AppViewModel, onDismiss: () -> Unit) {
             ) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun ColorDialog(model: AppViewModel, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("App color") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AccentChoices.chunked(4).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        row.forEach { (name, color) ->
+                            val selected = model.accent == color
+                            Box(
+                                Modifier.size(52.dp).clip(CircleShape).background(color)
+                                    .border(if (selected) 3.dp else 0.dp, Color.White, CircleShape)
+                                    .clickable { model.updateAccent(color) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (selected) Icon(Icons.Filled.Check, contentDescription = name, tint = Color.Black)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
     )
 }

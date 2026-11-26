@@ -55,6 +55,11 @@ class Store(context: Context) {
         get() = prefs.getString("selectedServer", "").orEmpty()
         set(value) = prefs.edit().putString("selectedServer", value).apply()
 
+    /** The app colour chosen in More > App color, as an ARGB number. */
+    var accent: Int
+        get() = prefs.getInt("accent", 0xFF22D3EE.toInt())
+        set(value) = prefs.edit().putInt("accent", value).apply()
+
     var matchesUrl: String
         get() = prefs.getString("matchesUrl", "").orEmpty()
         set(value) = prefs.edit().putString("matchesUrl", value).apply()

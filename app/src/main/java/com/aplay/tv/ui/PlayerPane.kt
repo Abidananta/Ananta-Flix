@@ -1,5 +1,7 @@
 package com.aplay.tv.ui
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.CircleShape
 import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -293,6 +295,18 @@ private fun BoxScope.Controls(
                         onTouch()
                     },
                     modifier = Modifier.weight(1f).height(28.dp).padding(horizontal = 8.dp),
+                    // A thin line with a round dot, in the app colour.
+                    thumb = {
+                        Box(Modifier.size(14.dp).clip(CircleShape).background(Accent))
+                    },
+                    track = { state ->
+                        Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(Color(0x66FFFFFF))) {
+                            Box(
+                                Modifier.fillMaxWidth(state.value.coerceIn(0f, 1f)).fillMaxHeight()
+                                    .background(Accent)
+                            )
+                        }
+                    },
                 )
                 TimeText(duration)
             }

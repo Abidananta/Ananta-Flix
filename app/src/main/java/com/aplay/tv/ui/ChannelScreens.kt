@@ -56,8 +56,8 @@ fun ChannelsScreen(
         }
     }
     Column(Modifier.fillMaxSize()) {
-        // The chips are hidden under the player to leave room for channels.
-        if (playingId == null) ChipRow(categories, active, onCategory)
+        // Categories stay visible under the Now Playing card.
+        ChipRow(categories, active, onCategory)
         if (visible.isEmpty()) {
             EmptyMessage("No channels found.")
         } else {

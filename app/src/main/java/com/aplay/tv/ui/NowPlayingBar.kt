@@ -6,6 +6,9 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
@@ -51,29 +54,43 @@ import androidx.compose.ui.unit.sp
 import com.aplay.tv.AppViewModel
 import com.aplay.tv.Config
 
-/** The channel that is playing, in a glass card under the player window. */
+private val NpCard = Color(0xFF141824)
+private val NpBorder = Color(0xFF262B3A)
+private val NpPill = Color(0xFF1E2433)
+private val NpPillBorder = Color(0xFF2E3547)
+private val NpPillText = Color(0xFFA7B0C4)
+
+/** The channel that is playing: a dark card with a cyan bar and the server on the right. */
 @Composable
 fun NowPlayingBar(model: AppViewModel) {
     val context = LocalContext.current
     val player = model.player
     val playing = player.playing ?: return
     var servers by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(20.dp)
-    val edge = Color(0x40FFFFFF)
+    val shape = RoundedCornerShape(16.dp)
 
     Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
         Row(
-            Modifier.fillMaxWidth().clip(shape)
-                .background(Brush.verticalGradient(listOf(Color(0x40FFFFFF), Color(0x12FFFFFF))))
-                .border(1.dp, edge, shape)
-                .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+            Modifier.fillMaxWidth().clip(shape).background(NpCard)
+                .border(1.dp, NpBorder, shape)
+                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text("● NOW PLAYING", color = LiveRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp)).background(Accent))
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(LiveRed))
+                    Text(
+                        "NOW PLAYING CHANNEL",
+                        Modifier.padding(start = 8.dp),
+                        color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    )
+                }
                 Text(
                     playing.title,
+                    Modifier.padding(top = 4.dp),
                     fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -83,20 +100,24 @@ fun NowPlayingBar(model: AppViewModel) {
                     onClick = {
                         open(context, Intent(Intent.ACTION_VIEW, Uri.parse(Config.TELEGRAM_URL)))
                     },
-                ) { Icon(Icons.AutoMirrored.Filled.Send, "Telegram", tint = MaterialTheme.colorScheme.primary) }
+                ) { Icon(Icons.AutoMirrored.Filled.Send, "Telegram", tint = Accent) }
             }
             Box {
-                Text(
-                    if (playing.streams.size > 1) "${playing.streams[playing.server].name} ▾" else "Server 1",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    modifier = Modifier.clip(RoundedCornerShape(50))
-                        .background(Color(0x26FFFFFF))
-                        .border(1.dp, edge, RoundedCornerShape(50))
+                Row(
+                    Modifier.clip(RoundedCornerShape(10.dp)).background(NpPill)
+                        .border(1.dp, NpPillBorder, RoundedCornerShape(10.dp))
                         .clickable { servers = true }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(LiveRed))
+                    Text(
+                        (if (playing.streams.size > 1) playing.streams[playing.server].name else "Server 1")
+                            .uppercase(),
+                        Modifier.padding(start = 8.dp),
+                        color = NpPillText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                    )
+                }
                 DropdownMenu(expanded = servers, onDismissRequest = { servers = false }) {
                     playing.streams.forEachIndexed { index, stream ->
                         DropdownMenuItem(
