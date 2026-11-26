@@ -2,4 +2,4 @@
 # Format:  Nam | link
 # Line er shurute # thakle seta bad jabe. Niche udaharon (# muche nijer link din):
 #
-# My Channels | https://example.com/my.m3u
+# My Channels | https://raw.githubusercontent.com/Abidananta/anantaott/refs/heads/main/a_playlist.m3u
