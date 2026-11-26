@@ -1,5 +1,5 @@
 #EXTM3U
 #EXTINF:-1 group-title="Demo",Big Buck Bunny (test stream)
-https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+https://raw.githubusercontent.com/Abidananta/anantaott/refs/heads/main/a_playlist.m3u
 #EXTINF:-1 group-title="Demo",Apple Sample (test stream)
-https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8
+https://raw.githubusercontent.com/Abidananta/anantaott/refs/heads/main/a_playlist.m3u
