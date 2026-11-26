@@ -70,7 +70,7 @@ class IptvRepository(private val context: Context) {
     private fun downloadText(url: String): String {
         val request = Request.Builder()
             .url(url)
-            .header("User-Agent", "GlassIPTV/1.0 (Android)")
+            .header("User-Agent", "AFLIX/1.0 (Android)")
             .header("Accept", "*/*")
             .build()
         client.newCall(request).execute().use { response ->

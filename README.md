@@ -1,4 +1,4 @@
-# Glass IPTV — Android IPTV Player
+# AFLIX — Android IPTV Player
 
 A complete Android Studio project: a dark, glassy IPTV player built with
 **Kotlin + Jetpack Compose + Material 3 + Media3 ExoPlayer**, redesigned
@@ -34,7 +34,7 @@ M3U playlist hosted on GitHub.
 | Logos | Coil, white rounded-square logo tiles. Priority: playlist `tvg-logo` → iptv-org database looked up by channel name (see "Channel logos" below) → monogram tile with the channel's initials on a name-based gradient |
 | Favourites / Recent | DataStore (persisted locally, survives restarts) |
 | Design | Dark navy (`#0A0E1A` / `#0F1626`), cyan accent (`#00D4FF`), dark glass cards, cyan-bordered category chips, 3-column channel tile grid (4 on wide screens) |
-| Screens | **MATCHES** (Sports channels from the playlist — no invented scores/fixtures), **CHANNELS** (main tab: search, category chips, Now Playing bar + 3-column tile grid), **CATEGORIES** (category list with counts), **FAVORITES** (tile grid), **MORE** (Glass IPTV v1.0, Network Stream, Custom Playlists, PiP + Data Saver toggles, Player Decoder), Detail, Player |
+| Screens | **MATCHES** (Sports channels from the playlist — no invented scores/fixtures), **CHANNELS** (main tab: search, category chips, Now Playing bar + 3-column tile grid), **CATEGORIES** (category list with counts), **FAVORITES** (tile grid), **MORE** (AFLIX v1.0, Network Stream, Custom Playlists, PiP + Data Saver toggles, Player Decoder), Detail, Player |
 | Now Playing | Channels screen shows a "NOW PLAYING CHANNEL" bar with the channel name, EPG line and a "SERVER 1" pill, plus Join Telegram (only when `AppConfig.TELEGRAM_URL` is set), Reload, Share and Fullscreen buttons |
 
 ---
@@ -142,7 +142,7 @@ A GitHub Actions workflow is already included: `.github/workflows/build-apk.yml`
    ```bash
    git init
    git add .
-   git commit -m "Glass IPTV app"
+   git commit -m "AFLIX app"
    git branch -M main
    git remote add origin https://github.com/<apnar-username>/<repo-name>.git
    git push -u origin main
@@ -224,7 +224,7 @@ iptv-app/
             ├── HomeScreen.kt            # compatibility wrapper delegating to ChannelsScreen
             ├── CategoriesScreen.kt      # category list with counts, tap to filter Channels
             ├── MatchesScreen.kt         # Sports channels from the playlist (no invented fixtures)
-            ├── MoreScreen.kt            # Glass IPTV v1.0, Network Stream, Custom Playlists, PiP/Data Saver
+            ├── MoreScreen.kt            # AFLIX v1.0, Network Stream, Custom Playlists, PiP/Data Saver
             ├── LiveTvScreen.kt          # tile grid, category filter
             ├── MoviesScreen.kt          # tile grid, detail on tap
             ├── SeriesScreen.kt          # empty state until playlist has a Series group

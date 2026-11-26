@@ -35,7 +35,7 @@ object AppConfig {
      *   "https://example.com/epg.xml"
      */
     /** App identity shown on the More screen (our own name — not a copy of any other app). */
-    const val APP_NAME: String = "Glass IPTV"
+    const val APP_NAME: String = "AFLIX"
     const val APP_VERSION: String = "1.0"
     const val APP_TAGLINE: String = "Live TV, Sports & Custom Streams"
 

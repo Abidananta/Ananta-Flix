@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "GlassIPTV"
+rootProject.name = "AFLIX"
 include(":app")
