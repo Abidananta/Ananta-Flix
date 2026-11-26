@@ -1,1 +1,2 @@
 My Channels | https://raw.githubusercontent.com/Abidananta/anantaott/refs/heads/main/a_playlist.m3u
+Server 1 | https://raw.githubusercontent.com/sarsx3/aladin430/refs/heads/main/playlists/eamin-tv.m3u
