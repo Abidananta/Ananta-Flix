@@ -2,4 +2,4 @@
 # Format:  Nam | link
 # Line er shurute # thakle seta bad jabe. Niche udaharon (# muche nijer link din):
 #
-# My Channels | https://example.com/my.m3u
+# My Channels | https://raw.githubusercontent.com/sarsx3/aladin430/refs/heads/main/playlists/eamin-tv.m3u
