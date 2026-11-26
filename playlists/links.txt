@@ -1,2 +1,3 @@
 Server 1 | https://raw.githubusercontent.com/sarsx3/aladin430/refs/heads/main/playlists/eamin-tv.m3u
+Server 2 | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/new_isp.m3u
 
