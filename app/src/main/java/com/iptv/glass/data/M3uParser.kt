@@ -39,7 +39,11 @@ import com.iptv.glass.model.Channel
  */
 object M3uParser {
 
-    private val ATTR_REGEX = Regex("""([a-zA-Z0-9_-]+)="([^"]*)"""")
+    // NOTE: written as an escaped (non-raw) string on purpose — the pattern
+    // ends with a double quote, and a raw string cannot end with one:
+    // `...*""""` would terminate the raw string one quote early and leave
+    // a stray `"` that swallows the following lines (compile error).
+    private val ATTR_REGEX = Regex("([a-zA-Z0-9_-]+)=\"([^\"]*)\"")
 
     fun parse(text: String): List<Channel> {
         val lines = text.lines()

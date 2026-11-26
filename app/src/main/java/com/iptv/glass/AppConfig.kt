@@ -34,6 +34,18 @@ object AppConfig {
      * tvg-id values):
      *   "https://example.com/epg.xml"
      */
+    /** App identity shown on the More screen (our own name — not a copy of any other app). */
+    const val APP_NAME: String = "Glass IPTV"
+    const val APP_VERSION: String = "1.0"
+    const val APP_TAGLINE: String = "Live TV, Sports & Custom Streams"
+
+    /**
+     * Optional Telegram group/channel link for the "Join Telegram" button
+     * on the Channels screen. Leave empty ("") and the button is hidden.
+     * Put your own link here, e.g. "https://t.me/yourchannel".
+     */
+    const val TELEGRAM_URL: String = ""
+
     const val EPG_URL: String = ""
 
     /** Refresh the playlist automatically this often (in minutes) while the app is open. */

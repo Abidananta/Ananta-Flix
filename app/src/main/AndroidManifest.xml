@@ -23,6 +23,8 @@
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:exported="true"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
             android:screenOrientation="unspecified"
             android:theme="@style/Theme.GlassIPTV">
             <intent-filter>

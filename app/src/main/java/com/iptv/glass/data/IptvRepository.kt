@@ -32,11 +32,16 @@ class IptvRepository(private val context: Context) {
         val errorMessage: String? = null
     )
 
-    suspend fun loadAll(): LoadResult = withContext(Dispatchers.IO) {
+    /**
+     * [playlistUrlOverride] — when non-blank (set from More > Custom Playlists),
+     * that URL is fetched instead of [AppConfig.PLAYLIST_URL].
+     */
+    suspend fun loadAll(playlistUrlOverride: String? = null): LoadResult = withContext(Dispatchers.IO) {
         var usedFallback = false
         var error: String? = null
+        val playlistUrl = playlistUrlOverride?.takeIf { it.isNotBlank() } ?: AppConfig.PLAYLIST_URL
         val m3uText: String = try {
-            downloadText(AppConfig.PLAYLIST_URL)
+            downloadText(playlistUrl)
                 .takeIf { it.contains("#EXTINF") }
                 ?: throw IllegalStateException("Downloaded file is not an M3U playlist")
         } catch (e: Exception) {

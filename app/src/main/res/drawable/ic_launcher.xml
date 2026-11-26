@@ -3,8 +3,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#7C5CFF" android:pathData="M0,0h108v108H0z" />
+    <!-- Dark navy rounded square, cyan border, cyan play triangle. -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,32 L76,54 L44,76 Z" />
+        android:fillColor="#0A0E1A"
+        android:pathData="M20,8h68a12,12 0 0,1 12,12v68a12,12 0 0,1 -12,12H20a12,12 0 0,1 -12,-12V20A12,12 0 0,1 20,8z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="3"
+        android:pathData="M20,8h68a12,12 0 0,1 12,12v68a12,12 0 0,1 -12,12H20a12,12 0 0,1 -12,-12V20A12,12 0 0,1 20,8z" />
+    <path
+        android:fillColor="#00D4FF"
+        android:pathData="M44,36 L74,54 L44,72 Z" />
 </vector>

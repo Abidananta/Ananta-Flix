@@ -1,11 +1,21 @@
 # Glass IPTV — Android IPTV Player
 
-A complete Android Studio project: a dark, glassy (glassmorphism) IPTV player
-built with **Kotlin + Jetpack Compose + Material 3 + Media3 ExoPlayer**.
+A complete Android Studio project: a dark, glassy IPTV player built with
+**Kotlin + Jetpack Compose + Material 3 + Media3 ExoPlayer**, redesigned
+in the style of the reference layout the user asked for: dark navy
+background (`#0A0E1A` / `#0F1626`), cyan accent (`#00D4FF`), white channel
+logos on white tiles, and a 5-tab bottom bar.
 
 Live TV, Movies and Series sections, channel logos, favourites, recent
 watched, search, categories, and an optional XMLTV EPG — all driven by one
 M3U playlist hosted on GitHub.
+
+> **This app is a player only. It does not supply any channels, and it
+> does not copy any other app's brand, name, or social handles.** It plays
+> whatever playlist you point it at. Only use a playlist you have the
+> right to use, and respect the terms of the services whose streams it
+> lists. The bundled sample playlist contains only freely available
+> demo videos (Blender Foundation / Google sample streams).
 
 > **This app is a player only. It does not supply any channels.** It plays
 > whatever playlist you point it at. Only use a playlist you have the
@@ -23,12 +33,13 @@ M3U playlist hosted on GitHub.
 | M3U parsing | `data/M3uParser.kt` — handles single-line **and** multi-line `#EXTINF` entries (see below) |
 | Categories | Dynamic, from `group-title` in the playlist (Family, Movies, Sports, Live Action, Documentary, Drama, Teen, Comedy, Musical, Fantasy, Adventure, Science Fiction, …) |
 | Live vs Movies vs Series | Live = HLS (`.m3u8`); Movies = `group-title="Movies"` (+ VOD files); Series = `group-title="Series"` |
-| Player | Media3 ExoPlayer — HLS (`.m3u8`) and MP4/MKV, play/pause, seek for VOD, fullscreen (landscape) |
+| Player | Media3 ExoPlayer — HLS (`.m3u8`) and MP4/MKV, play/pause, seek for VOD, fullscreen (landscape), Picture-in-Picture when enabled, Data Saver caps quality to SD, "SERVER 1" pill |
 | EPG | Optional XMLTV feed in `AppConfig.EPG_URL`; shows current/next programme, otherwise "No EPG info" |
-| Logos | Coil, with a Live-TV icon fallback when a logo is missing |
+| Logos | Coil, white rounded-square logo tiles. Priority: playlist `tvg-logo` → iptv-org database looked up by channel name (see "Channel logos" below) → monogram tile with the channel's initials on a name-based gradient |
 | Favourites / Recent | DataStore (persisted locally, survives restarts) |
-| Design | Dark theme, frosted-glass cards, translucent chips/panels, gradient background, rounded corners |
-| Screens | Home (search + categories + recent), Live TV, Movies, Series, Favourites, Detail, Player |
+| Design | Dark navy (`#0A0E1A` / `#0F1626`), cyan accent (`#00D4FF`), dark glass cards, cyan-bordered category chips, 3-column channel tile grid (4 on wide screens) |
+| Screens | **MATCHES** (Sports channels from the playlist — no invented scores/fixtures), **CHANNELS** (main tab: search, category chips, Now Playing bar + 3-column tile grid), **CATEGORIES** (category list with counts), **FAVORITES** (tile grid), **MORE** (Glass IPTV v1.0, Network Stream, Custom Playlists, PiP + Data Saver toggles, Player Decoder), Detail, Player |
+| Now Playing | Channels screen shows a "NOW PLAYING CHANNEL" bar with the channel name, EPG line and a "SERVER 1" pill, plus Join Telegram (only when `AppConfig.TELEGRAM_URL` is set), Reload, Share and Fullscreen buttons |
 
 ---
 
@@ -73,6 +84,50 @@ lists 76 live HLS channels. Its format has two quirks the parser was
 built for — see "M3U format notes" below. No stream URLs from that
 playlist are copied into this repo; the app downloads it at runtime.
 
+## 2b. Channel logos — loaded from the internet by channel name
+
+Channel logos do **not** have to be in the playlist. `data/ChannelLogoResolver.kt`
+resolves them in three steps, after the channel list has already loaded
+(logo lookup never blocks the list — tiles show the monogram placeholder
+until the real logo arrives):
+
+1. **Playlist first** — `tvg-logo` from the M3U entry, when present.
+2. **iptv-org database by name** — the public database at
+   `https://iptv-org.github.io`:
+   - `api/channels.json` — `{"id": "DeeptoTV.bd", "name": "Deepto TV",
+     "alt_names": ["দীপ্ত টিভি"], "country": "BD", …}`. This file has
+     **no logo field**.
+   - `api/logos.json` — `{"channel": "DeeptoTV.bd", "in_use": true,
+     "format": "PNG", "url": "https://i.imgur.com/…png"}`.
+   - The resolver joins the two by channel id. Names are normalised
+     (lowercase, HD/SD/4K stripped, punctuation removed) and matched
+     against the name and every `alt_names` entry, so "Deepto TV HD",
+     "Deepto TV" and "দীপ্ত টিভি" all find the same logo. When several
+     countries share a name, Bangladesh (`.bd`) is preferred, then India.
+     PNG logos are preferred over JPEG; SVG is skipped (Coil has no SVG
+     decoder by default).
+   - The joined name → logo map is cached in memory and in the app cache
+     directory, and re-fetched at most once per 24 hours. If iptv-org is
+     unreachable, the app simply keeps the monogram tiles — nothing breaks.
+3. **Monogram fallback** — when no logo exists anywhere, the tile shows
+   the channel's initials (first letters of up to two words, Bengali-aware:
+   "Deepto TV" → "DT", "BTV" → "BT") in bold white on a gradient picked
+   from the channel name (cyan/blue, pink/orange, teal/green or purple),
+   on the same white rounded square as a real logo.
+
+No logo URLs are hard-coded in the app, and no other app's branding is used.
+
+### Telegram button
+
+The "Join Telegram" button on the Channels screen only appears when you
+set your own link in `AppConfig.kt`:
+
+```kotlin
+const val TELEGRAM_URL: String = "https://t.me/yourchannel"
+```
+
+Leave it as `""` and the button stays hidden.
+
 ## 3. Build an APK
 
 In Android Studio: **Build → Build App Bundle(s) / APK(s) → Build APK(s)**.
@@ -99,7 +154,17 @@ A GitHub Actions workflow is already included: `.github/workflows/build-apk.yml`
 2. GitHub repo te jan: **Actions tab > Build APK** — push korar sathe sathe build shuru hobe.
 3. Build sesh hole oi run er niche **Artifacts > app-debug** theke `app-debug.apk` download koren, phone e install koren.
 
-Note: ei workflow `gradle` command diye build kore, tai `gradlew` file na thakleo cholbe. Java 17 + Android SDK + Gradle 8.7 GitHub nije setup kore ney.
+Note: ei workflow `gradle` command diye build kore, tai `gradlew` file na thakleo cholbe.
+
+**GitHub build fix — no `setup-android` step:** the workflow deliberately
+does NOT use `android-actions/setup-android@v3`. That step failed on
+`ubuntu-latest` with `Warning: Failed to find package 'tools'` and
+`sdkmanager ... failed with exit code 1`, because the `tools` package no
+longer exists. Instead the workflow uses the Android SDK already
+preinstalled on the `ubuntu-latest` runner, accepts licences with
+`sdkmanager --licenses`, and installs only
+`platforms;android-34`, `build-tools;34.0.0` and `platform-tools`.
+Do not re-add the `setup-android` step — it will fail the same way.
 
 ## 4. EPG (TV guide)
 
@@ -146,26 +211,32 @@ iptv-app/
     ├── src/main/AndroidManifest.xml     # INTERNET permission
     ├── src/main/assets/sample_playlist.m3u
     └── src/main/java/com/iptv/glass/
-        ├── AppConfig.kt                 # <<< edit PLAYLIST_URL / EPG_URL here
+        ├── AppConfig.kt                 # <<< edit PLAYLIST_URL / EPG_URL / TELEGRAM_URL here
         ├── GlassIptvApp.kt              # Application + Coil cache
-        ├── MainActivity.kt              # NavHost + glass bottom bar (Home/Live/Movies/Series/Favourites)
+        ├── MainActivity.kt              # NavHost + 5-tab bottom bar (MATCHES/CHANNELS/CATEGORIES/FAVORITES/MORE)
         ├── model/Channel.kt             # Channel + EpgProgram, isLive/isMovie/isSeries
         ├── data/
         │   ├── M3uParser.kt             # multi-line M3U parser
         │   ├── EpgParser.kt             # XMLTV parser (best-effort)
-        │   ├── IptvRepository.kt        # GitHub fetch + fallback to sample
-        │   └── FavoritesStore.kt        # DataStore favourites + recent
-        ├── viewmodel/MainViewModel.kt   # loading, search, category filter, EPG lookups
-        ├── ui/theme/Theme.kt            # dark glass palette, gradients, typography
-        ├── ui/components/GlassComponents.kt  # GlassCard, GlassChip, ChannelLogo, ChannelCard
+        │   ├── IptvRepository.kt        # GitHub fetch + fallback to sample, custom-URL override
+        │   ├── ChannelLogoResolver.kt   # internet logos by channel name (iptv-org channels+logos APIs, 24h cache, monogram fallback)
+        │   ├── FavoritesStore.kt        # DataStore favourites + recent
+        │   └── SettingsStore.kt         # DataStore PiP / Data Saver / decoder / custom playlist URL
+        ├── viewmodel/MainViewModel.kt   # loading, search, category filter, EPG, now-playing, settings, logo resolution
+        ├── ui/theme/Theme.kt            # dark navy + cyan palette, gradients, monogram palettes, typography
+        ├── ui/components/GlassComponents.kt  # GlassCard, GlassChip, ChannelLogo (white tile + monogram), ChannelTile, ChannelTileGrid, PlayerArea, NowPlayingBar, NexaIcon
         └── ui/screens/
-            ├── HomeScreen.kt            # search, category chips, recent, all channels
-            ├── LiveTvScreen.kt
-            ├── MoviesScreen.kt          # 2-column grid, detail on tap
+            ├── ChannelsScreen.kt        # main tab: search, chips, Now Playing bar, 3-column tile grid
+            ├── HomeScreen.kt            # compatibility wrapper delegating to ChannelsScreen
+            ├── CategoriesScreen.kt      # category list with counts, tap to filter Channels
+            ├── MatchesScreen.kt         # Sports channels from the playlist (no invented fixtures)
+            ├── MoreScreen.kt            # Glass IPTV v1.0, Network Stream, Custom Playlists, PiP/Data Saver
+            ├── LiveTvScreen.kt          # tile grid, category filter
+            ├── MoviesScreen.kt          # tile grid, detail on tap
             ├── SeriesScreen.kt          # empty state until playlist has a Series group
-            ├── FavoritesScreen.kt
+            ├── FavoritesScreen.kt       # tile grid
             ├── DetailScreen.kt          # logo, EPG now/next, Watch button
-            └── PlayerScreen.kt          # Media3 ExoPlayer, fullscreen, favourite, error state
+            └── PlayerScreen.kt          # Media3 ExoPlayer, SERVER 1 pill, PiP, Data Saver, fullscreen
 ```
 
 ## 7. Troubleshooting
@@ -176,4 +247,9 @@ iptv-app/
 | A channel won't play / "Couldn't play this stream" | Live stream links can expire — update the playlist on GitHub, then refresh in the app |
 | No EPG info | EPG is off by default (`EPG_URL = ""`) or the feed has no programme for that `tvg-id` |
 | Series tab is empty | The current playlist has no `group-title="Series"` group yet — add one to the M3U and refresh |
+| Matches tab has no channels | The playlist has no `group-title="Sports"` group yet — add one to the M3U and refresh. No scores/fixtures are shown by design |
+| "Join Telegram" button missing | `AppConfig.TELEGRAM_URL` is empty by default — put your own Telegram link there to show it |
+| A channel shows initials instead of its logo | No logo was found for that name in the playlist or in iptv-org — the monogram tile is the designed fallback. Check the spelling in the M3U, or add a `tvg-logo="…"` to that entry |
+| Logos load slowly on first start | The iptv-org database is fetched once (in the background) and cached for 24 hours; later starts reuse the cache |
+| GitHub build fails at "Set up Android SDK" | That step was removed — the workflow must NOT use `android-actions/setup-android` (fails with "Failed to find package 'tools'"). It uses the runner's preinstalled SDK instead |
 | Gradle sync fails | Use Android Studio's bundled JDK 17, and check internet access for Maven Central / Google |

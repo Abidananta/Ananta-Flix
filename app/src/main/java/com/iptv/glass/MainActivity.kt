@@ -8,13 +8,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -23,7 +23,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -31,25 +36,35 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.iptv.glass.ui.components.NexaIcon
+import com.iptv.glass.ui.components.NexaIconSize
+import com.iptv.glass.ui.screens.CategoriesScreen
+import com.iptv.glass.ui.screens.ChannelsScreen
 import com.iptv.glass.ui.screens.DetailScreen
 import com.iptv.glass.ui.screens.FavoritesScreen
-import com.iptv.glass.ui.screens.HomeScreen
-import com.iptv.glass.ui.screens.LiveTvScreen
-import com.iptv.glass.ui.screens.MoviesScreen
+import com.iptv.glass.ui.screens.MatchesScreen
+import com.iptv.glass.ui.screens.MoreScreen
 import com.iptv.glass.ui.screens.PlayerScreen
-import com.iptv.glass.ui.screens.SeriesScreen
 import com.iptv.glass.ui.theme.AppGradient
 import com.iptv.glass.ui.theme.GlassIPTVTheme
 import com.iptv.glass.ui.theme.GlassMuted
 import com.iptv.glass.ui.theme.GlassText
+import com.iptv.glass.ui.theme.NexaBottomBar
+import com.iptv.glass.ui.theme.NexaCyan
 import com.iptv.glass.viewmodel.MainViewModel
 
-sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    data object Home : Screen("home", "Home", Icons.Default.Home)
-    data object Live : Screen("live", "Live TV", Icons.Default.LiveTv)
-    data object Movies : Screen("movies", "Movies", Icons.Default.Movie)
-    data object Series : Screen("series", "Series", Icons.Default.Tv)
-    data object Favorites : Screen("favorites", "Favourites", Icons.Default.Favorite)
+/**
+ * Bottom navigation, modelled on the reference app:
+ * MATCHES, CHANNELS, CATEGORIES, FAVORITES, MORE.
+ * Channels is the start (main) tab. The selected tab's icon sits on a
+ * cyan rounded pill, like the reference screenshots.
+ */
+sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
+    data object Matches : Screen("matches", "MATCHES", Icons.Default.Shield)
+    data object Channels : Screen("channels", "CHANNELS", Icons.Default.LiveTv)
+    data object Categories : Screen("categories", "CATEGORIES", Icons.Default.Layers)
+    data object Favorites : Screen("favorites", "FAVORITES", Icons.Default.Favorite)
+    data object More : Screen("more", "MORE", Icons.Default.Tune)
 }
 
 class MainActivity : ComponentActivity() {
@@ -65,14 +80,14 @@ class MainActivity : ComponentActivity() {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = backStackEntry?.destination?.route
                 val showBottomBar = currentRoute in listOf(
-                    Screen.Home.route, Screen.Live.route, Screen.Movies.route,
-                    Screen.Series.route, Screen.Favorites.route
+                    Screen.Matches.route, Screen.Channels.route, Screen.Categories.route,
+                    Screen.Favorites.route, Screen.More.route
                 )
 
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
-                            GlassBottomBar(navController, currentRoute)
+                            NexaBottomBar(navController, currentRoute)
                         }
                     }
                 ) { innerPadding ->
@@ -82,25 +97,34 @@ class MainActivity : ComponentActivity() {
                             .background(AppGradient)
                             .padding(innerPadding)
                     ) {
-                        NavHost(navController, startDestination = Screen.Home.route) {
-                            composable(Screen.Home.route) {
-                                HomeScreen(
+                        NavHost(navController, startDestination = Screen.Channels.route) {
+                            composable(Screen.Matches.route) {
+                                MatchesScreen(viewModel) { navController.navigate("player/${it.id}") }
+                            }
+                            composable(Screen.Channels.route) {
+                                ChannelsScreen(
                                     viewModel = viewModel,
                                     onPlay = { navController.navigate("player/${it.id}") },
                                     onOpenDetail = { navController.navigate("detail/${it.id}") }
                                 )
                             }
-                            composable(Screen.Live.route) {
-                                LiveTvScreen(viewModel) { navController.navigate("player/${it.id}") }
-                            }
-                            composable(Screen.Movies.route) {
-                                MoviesScreen(viewModel) { navController.navigate("detail/${it.id}") }
-                            }
-                            composable(Screen.Series.route) {
-                                SeriesScreen(viewModel) { navController.navigate("detail/${it.id}") }
+                            composable(Screen.Categories.route) {
+                                CategoriesScreen(viewModel) { category ->
+                                    viewModel.selectedCategory.value = category
+                                    navController.navigate(Screen.Channels.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
                             }
                             composable(Screen.Favorites.route) {
                                 FavoritesScreen(viewModel) { navController.navigate("player/${it.id}") }
+                            }
+                            composable(Screen.More.route) {
+                                MoreScreen(viewModel) { channel ->
+                                    navController.navigate("player/${channel.id}")
+                                }
                             }
                             composable("player/{channelId}") { entry ->
                                 val channel = viewModel.findChannel(entry.arguments?.getString("channelId").orEmpty())
@@ -132,12 +156,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun GlassBottomBar(navController: NavHostController, currentRoute: String?) {
-    val tabs = listOf(Screen.Home, Screen.Live, Screen.Movies, Screen.Series, Screen.Favorites)
-    NavigationBar(containerColor = Color(0xCC0B1026)) {
+private fun NexaBottomBar(navController: NavHostController, currentRoute: String?) {
+    val tabs = listOf(
+        Screen.Matches, Screen.Channels, Screen.Categories, Screen.Favorites, Screen.More
+    )
+    NavigationBar(containerColor = NexaBottomBar) {
         tabs.forEach { tab ->
+            val selected = currentRoute == tab.route
             NavigationBarItem(
-                selected = currentRoute == tab.route,
+                selected = selected,
                 onClick = {
                     navController.navigate(tab.route) {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -145,14 +172,38 @@ private fun GlassBottomBar(navController: NavHostController, currentRoute: Strin
                         restoreState = true
                     }
                 },
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
-                label = { Text(tab.label) },
+                icon = {
+                    Box(
+                        modifier = if (selected) {
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NexaCyan.copy(alpha = 0.22f))
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        } else {
+                            Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        }
+                    ) {
+                        NexaIcon(
+                            tab.icon,
+                            contentDescription = tab.label,
+                            tint = if (selected) NexaCyan else GlassMuted,
+                            size = NexaIconSize
+                        )
+                    }
+                },
+                label = {
+                    Text(
+                        tab.label,
+                        fontSize = 10.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = GlassText,
+                    selectedIconColor = NexaCyan,
                     selectedTextColor = GlassText,
                     unselectedIconColor = GlassMuted,
                     unselectedTextColor = GlassMuted,
-                    indicatorColor = Color.White.copy(alpha = 0.12f)
+                    indicatorColor = Color.Transparent
                 )
             )
         }
