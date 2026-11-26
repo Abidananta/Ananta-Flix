@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Glass IPTV</string>
+    <string name="search_hint">Search channels, movies…</string>
+    <string name="no_epg">No EPG info</string>
+    <string name="now_playing">Now</string>
+    <string name="up_next">Next</string>
+    <string name="live">LIVE</string>
+</resources>
