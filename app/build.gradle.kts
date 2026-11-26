@@ -16,6 +16,9 @@ android {
         targetSdk = 35
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
+        // Filled in by GitHub Actions, so the app knows where the playlists folder lives.
+        buildConfigField("String", "REPO", "\"${System.getenv("GITHUB_REPOSITORY").orEmpty()}\"")
+        buildConfigField("String", "BRANCH", "\"${System.getenv("GITHUB_REF_NAME").orEmpty()}\"")
     }
 
     // Personal signing key kept in the project so each new APK installs over the old one.

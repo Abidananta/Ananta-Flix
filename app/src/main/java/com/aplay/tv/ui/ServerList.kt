@@ -121,14 +121,6 @@ fun ServerDialog(model: AppViewModel, onDismiss: () -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    onDismiss()
-                    model.showAddPlaylist()
-                },
-            ) { Text("Add playlist") }
-        },
     )
 }
 
@@ -215,12 +207,6 @@ fun ServersScreen(
                 } else {
                     Icon(Icons.Filled.Dns, contentDescription = null, tint = Accent, modifier = Modifier.size(32.dp))
                 }
-            }
-        }
-        item(key = "__add") {
-            ServerTile("Add playlist", "link or file", false, false,
-                onClick = { model.showAddPlaylist() }, onLongClick = {}) {
-                Icon(Icons.Filled.Add, contentDescription = null, tint = Accent, modifier = Modifier.size(32.dp))
             }
         }
     }

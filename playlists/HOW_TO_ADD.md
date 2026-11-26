@@ -25,3 +25,18 @@ Online file er channel bodlale app e Refresh dilei notun list asbe.
 Releases theke install korun.
 
 Shudhu sei channel din jegulo chalanor onumoti apnar ache.
+
+## Auto update (APK build korte hobe na)
+GitHub e build hole app nije jane playlists folder kothay. App protiti kichu minute pore ar
+app e phire ashle GitHub theke folder ta abar pore. Tai `links.txt` ba kono file edit korle
+(Commit changes) app e nije notun list ashe. Repository private hole ei auto update kaj kore na,
+tokhon notun APK build korte hobe.
+
+* Protiti link ba file app er Servers tab e alada server card hoy.
+* Subfolder e file rakhle seta-o server hoy.
+* Link er line er shurute `#` thakle seta bad jay. `#` muchte hobe.
+
+## Matches
+* `matches.txt` e `Nam | link` likhun (matches.json er link).
+* Ba `.json` file ei folder e rakhun.
+* Shob source er match ekshathe dekhay. App e More > Matches source e-o link dewa jay.

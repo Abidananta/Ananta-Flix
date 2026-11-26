@@ -11,13 +11,16 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.net.UnknownHostException
+import org.json.JSONArray
 import java.util.UUID
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
@@ -75,7 +78,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var lastLoaded = 0L
 
     init {
-        refresh()
+        // First show the saved copies (instant), then check the internet.
+        job = viewModelScope.launch {
+            loading = true
+            reload(silent = true, savedOnly = true)
+            reload(silent = false, savedOnly = false)
+        }
         // Playlists are checked again now and then, so edits to an online playlist appear by themselves.
         viewModelScope.launch {
             while (true) {
@@ -93,28 +101,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Reloads playlists and matches. A silent reload shows no progress bar and no error message. */
     fun refresh(silent: Boolean = false) {
         job?.cancel()
-        job = viewModelScope.launch {
-            if (!silent) loading = true
-            val errors = mutableListOf<String>()
-            val loaded = withContext(Dispatchers.IO) { loadChannels(errors) }
-            ensureActive()
-            val newChannels = orderChannels(loaded.flatMap { it.channels }.distinctBy { it.id }, store.channelOrder)
-            if (newChannels != channels) channels = newChannels
-            sourceChannels = loaded.associate { it.key to it.channels }
-            servers = loaded.map { item ->
-                Server(
-                    key = item.key,
-                    name = item.name,
-                    count = item.channels.size,
-                    enabled = true,
-                    playlist = playlists.firstOrNull { it.source == item.key },
-                )
-            } + playlists.filter { p -> !p.enabled && loaded.none { it.key == p.source } }
-                .map { Server(it.source, it.name, 0, false, it) }
-            player.updateQueue(channels)
-            val newMatches = withContext(Dispatchers.IO) { loadMatches(errors) }
-            ensureActive()
-            if (newMatches != matches) matches = newMatches
+        job = viewModelScope.launch { reload(silent, savedOnly = false) }
+    }
+
+    /** True while the saved copy of a link is preferred over the internet. */
+    @Volatile
+    private var savedOnly = false
+
+    private suspend fun reload(silent: Boolean, savedOnly: Boolean) {
+        this.savedOnly = savedOnly
+        if (!silent) loading = true
+        val errors = mutableListOf<String>()
+        val files = withContext(Dispatchers.IO) { folderFiles() }
+        val loaded = withContext(Dispatchers.IO) { loadChannels(errors, files) }
+        val newChannels = orderChannels(loaded.flatMap { it.channels }.distinctBy { it.id }, store.channelOrder)
+        if (newChannels != channels) channels = newChannels
+        val newSources = loaded.associate { it.key to it.channels }
+        if (newSources != sourceChannels) sourceChannels = newSources
+        val newServers = loaded.map { item ->
+            Server(
+                key = item.key,
+                name = item.name,
+                count = item.channels.size,
+                enabled = true,
+                playlist = playlists.firstOrNull { it.source == item.key },
+            )
+        } + playlists.filter { p -> !p.enabled && loaded.none { it.key == p.source } }
+            .map { Server(it.source, it.name, 0, false, it) }
+        if (newServers != servers) servers = newServers
+        player.updateQueue(channels)
+        val newMatches = withContext(Dispatchers.IO) { loadMatches(errors, files) }
+        if (newMatches != matches) matches = newMatches
+        if (!savedOnly) {
             loading = false
             lastLoaded = System.currentTimeMillis()
             if (errors.isNotEmpty() && !silent) message = errors.joinToString("\n")
@@ -136,12 +154,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private class Loaded(val key: String, val name: String, val channels: List<Channel>)
 
-    private fun loadChannels(errors: MutableList<String>): List<Loaded> {
+    private suspend fun loadChannels(errors: MutableList<String>, files: List<FolderFile>): List<Loaded> {
         val sources = buildList {
             if (Config.DEFAULT_PLAYLIST_URL.isNotBlank()) {
                 add("Main playlist" to Config.DEFAULT_PLAYLIST_URL)
             }
-            addAll(folderPlaylists())
+            addAll(folderPlaylists(files))
             playlists.filter { it.enabled }.forEach { add(it.name to it.source) }
         }
         if (sources.isEmpty()) {
@@ -149,42 +167,176 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return listOf(Loaded("demo", "Demo", demo))
         }
 
-        return sources.distinctBy { it.second }.map { (name, source) ->
-            val list = try {
-                M3uParser.load(read(source), name, source).also {
-                    if (it.isEmpty()) errors += "$name: no channels found"
+        // All playlists are downloaded at the same time.
+        val results = coroutineScope {
+            sources.distinctBy { it.second }.map { (name, source) ->
+                async(Dispatchers.IO) {
+                    var problem: String? = null
+                    val list = try {
+                        loadSource(name, source).also {
+                            if (it.isEmpty()) problem = "$name: no channels found"
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        problem = "$name: ${e.message ?: "could not load"}"
+                        emptyList()
+                    }
+                    Loaded(source, name, list.distinctBy { it.id }.map { it.copy(source = source) }) to problem
                 }
+            }.awaitAll()
+        }
+        results.forEach { (_, problem) -> if (problem != null) errors += problem }
+        return results.map { it.first }
+    }
+
+    /**
+     * Matches come from every source together: the links saved in More > Matches source
+     * (one per line), matches.txt and any .json file in the playlists folder.
+     */
+    private fun loadMatches(errors: MutableList<String>, files: List<FolderFile>): List<Match> {
+        val now = System.currentTimeMillis()
+        val sources = mutableListOf<Pair<String, String>>()
+        matchesUrl.split(Regex("\\s+")).filter { it.isNotBlank() }.forEach {
+            sources += "Matches" to (M3uParser.cleanLink(it) ?: it)
+        }
+        if (Config.DEFAULT_MATCHES_URL.isNotBlank()) sources += "Matches" to Config.DEFAULT_MATCHES_URL
+        for (file in files) {
+            val name = file.path.substringAfterLast('/')
+            try {
+                when {
+                    name.equals("matches.txt", ignoreCase = true) ->
+                        parsePlaylistLinks(read(file.source)).forEach { (n, l) ->
+                            sources += n to (M3uParser.cleanLink(l) ?: l)
+                        }
+                    name.endsWith(".json", ignoreCase = true) ->
+                        sources += name.substringBeforeLast('.') to file.source
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errors += "$name: ${e.message ?: "could not load"}"
+            }
+        }
+        val unique = sources.distinctBy { it.second }
+        if (unique.isEmpty()) return parseMatches(asset("demo/matches.json"), now)
+        return unique.flatMap { (name, source) ->
+            try {
+                parseMatches(read(source), now)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 errors += "$name: ${e.message ?: "could not load"}"
                 emptyList()
             }
-            Loaded(source, name, list.distinctBy { it.id }.map { it.copy(source = source) })
+        }.distinct().sortedBy { it.startMillis }
+    }
+
+    /**
+     * Loads one playlist. If it holds no channels but lists links to other playlists
+     * (or to single streams), those links are opened too.
+     */
+    private fun loadSource(name: String, source: String, depth: Int = 0): List<Channel> {
+        val text = read(source)
+        val direct = M3uParser.load(text, name, source)
+        if (direct.isNotEmpty() || depth >= 2) return direct
+        val result = mutableListOf<Channel>()
+        for ((linkName, raw) in parsePlaylistLinks(text)) {
+            val link = M3uParser.cleanLink(raw) ?: continue
+            if (M3uParser.isDirectStream(link)) {
+                result += Channel(linkName, "", name, Stream(linkName, link))
+            } else {
+                result += try {
+                    loadSource(linkName, link, depth + 1)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+        }
+        return result
+    }
+
+    /** A file of the playlists folder. [source] can be opened with [read]. */
+    private class FolderFile(val path: String, val source: String)
+
+    /** Files of the folder on GitHub, so edits there are seen at once. Throws if GitHub cannot be read. */
+    private fun remoteFiles(dir: String, repo: String, branch: String, depth: Int = 0): List<FolderFile> {
+        val array = JSONArray(read("https://api.github.com/repos/$repo/contents/$dir?ref=$branch"))
+        val result = mutableListOf<FolderFile>()
+        for (i in 0 until array.length()) {
+            val item = array.getJSONObject(i)
+            val name = item.getString("name")
+            val path = item.getString("path")
+            when (item.getString("type")) {
+                "file" -> {
+                    val url = item.optString("download_url")
+                    if (url.isNotBlank() && !name.startsWith(".") && !name.startsWith("_")) {
+                        result += FolderFile(path.removePrefix(Config.PLAYLIST_FOLDER + "/"), url)
+                    }
+                }
+                "dir" -> if (depth < 2) result += remoteFiles(path, repo, branch, depth + 1)
+            }
+        }
+        return result
+    }
+
+    /** All files inside the bundled "playlists" folder, including subfolders. */
+    private fun assetFiles(dir: String = ""): List<String> {
+        val assets = getApplication<Application>().assets
+        return assets.list(dir).orEmpty().sorted().flatMap { entry ->
+            val path = if (dir.isEmpty()) entry else "$dir/$entry"
+            if (dir.isEmpty() && entry in setOf("demo", "images", "sounds", "webkit")) return@flatMap emptyList()
+            if (assets.list(path).orEmpty().isNotEmpty()) assetFiles(path) else listOf(path)
         }
     }
 
-    private fun loadMatches(errors: MutableList<String>): List<Match> {
-        val url = matchesUrl.ifBlank { Config.DEFAULT_MATCHES_URL }
-        val now = System.currentTimeMillis()
-        return try {
-            parseMatches(if (url.isBlank()) asset("demo/matches.json") else read(url), now)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            errors += "Matches: ${e.message ?: "could not load"}"
-            emptyList()
+    /**
+     * The playlists folder. It is read from GitHub when the app knows the repository, and the
+     * copy packed into the APK is used if GitHub cannot be reached.
+     */
+    private fun folderFiles(): List<FolderFile> {
+        val repo = Config.PLAYLIST_REPO.ifBlank { BuildConfig.REPO }
+        val branch = Config.PLAYLIST_BRANCH.ifBlank { BuildConfig.BRANCH.ifBlank { "main" } }
+        if ('/' in repo) {
+            try {
+                return remoteFiles(Config.PLAYLIST_FOLDER, repo, branch)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Private repository, no internet or no saved copy: use the packed files.
+            }
         }
+        return assetFiles().map { FolderFile(it, "asset:$it") }
     }
 
-    /** Playlists from the project's "playlists" folder: links.txt and any .m3u files. */
-    private fun folderPlaylists(): List<Pair<String, String>> {
-        val files = getApplication<Application>().assets.list("").orEmpty().sorted()
-        val links = if ("links.txt" in files) parsePlaylistLinks(asset("links.txt")) else emptyList()
-        val lists = files
-            .filter { it.endsWith(".m3u", ignoreCase = true) || it.endsWith(".m3u8", ignoreCase = true) }
-            .map { it.substringBeforeLast('.') to "asset:$it" }
-        return links + lists
+    /**
+     * Playlists from the folder: every link in links.txt, and every .m3u, .m3u8 or .txt file
+     * (also inside subfolders) as its own playlist.
+     */
+    private fun folderPlaylists(files: List<FolderFile>): List<Pair<String, String>> {
+        val result = mutableListOf<Pair<String, String>>()
+        for (file in files) {
+            val name = file.path.substringAfterLast('/')
+            val ext = name.substringAfterLast('.', "").lowercase()
+            try {
+                when {
+                    name.equals("links.txt", ignoreCase = true) ->
+                        parsePlaylistLinks(read(file.source)).forEach { (n, l) ->
+                            result += n to (M3uParser.cleanLink(l) ?: l)
+                        }
+                    name.equals("matches.txt", ignoreCase = true) -> Unit
+                    ext == "m3u" || ext == "m3u8" || ext == "txt" ->
+                        result += name.substringBeforeLast('.') to file.source
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // An unreadable links file is skipped.
+            }
+        }
+        return result
     }
 
     /** Reads a source; web links are saved so they still open when the network is down. */
@@ -195,6 +347,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return File(app.filesDir, source.removePrefix("file:")).readText()
         }
         val cache = File(app.filesDir, "cache_" + UUID.nameUUIDFromBytes(source.toByteArray()))
+        if (savedOnly && cache.exists()) return cache.readText()
         return try {
             Net.fetch(source).also { cache.writeText(it) }
         } catch (e: Exception) {
@@ -251,7 +404,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             addError = null
             try {
                 val count = withContext(Dispatchers.IO) {
-                    M3uParser.load(read(link), title, link).size
+                    loadSource(title, link).size
                 }
                 if (count == 0) {
                     addError = "No channels found. Check that this is an M3U playlist link."
@@ -283,7 +436,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val (title, count) = withContext(Dispatchers.IO) {
                     val text = app.contentResolver.openInputStream(uri)?.use { Net.readLimited(it) }
                         ?: throw IOException("The file could not be opened")
-                    val found = M3uParser.parse(text).size
+                    val found = M3uParser.parse(text).size + parsePlaylistLinks(text).size
                     if (found > 0) File(app.filesDir, fileName).writeText(text)
                     displayName(uri) to found
                 }

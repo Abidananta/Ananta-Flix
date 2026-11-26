@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -47,10 +48,12 @@ fun ChannelsScreen(
     onPlay: (Channel, List<Channel>) -> Unit,
     playingId: String?,
 ) {
-    val categories = listOf(ALL_CHANNELS) + channels.map { it.group }.distinct()
+    val categories = remember(channels) { listOf(ALL_CHANNELS) + channels.map { it.group }.distinct() }
     val active = if (category in categories) category else ALL_CHANNELS
-    val visible = channels.filter {
-        (active == ALL_CHANNELS || it.group == active) && it.name.contains(query, ignoreCase = true)
+    val visible = remember(channels, active, query) {
+        channels.filter {
+            (active == ALL_CHANNELS || it.group == active) && it.name.contains(query, ignoreCase = true)
+        }
     }
     Column(Modifier.fillMaxSize()) {
         // The chips are hidden under the player to leave room for channels.
@@ -96,7 +99,7 @@ private fun ChannelGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(channels, key = { it.id }) { channel ->
+        items(channels, key = { it.id }, contentType = { "channel" }) { channel ->
             val favorite = channel.id in favorites
             Card(
                 modifier = Modifier.clickable { onPlay(channel, channels) },

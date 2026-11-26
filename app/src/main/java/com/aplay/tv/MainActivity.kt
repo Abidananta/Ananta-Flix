@@ -16,6 +16,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -206,6 +214,8 @@ private fun App(model: AppViewModel, inPip: Boolean) {
     val playing = model.player.playing
     // Only the video is shown in full screen and in the floating window.
     val videoOnly = playing != null && (model.fullscreen || inPip)
+    // In the settings menu the video shrinks to a small floating window.
+    val mini = playing != null && !videoOnly && tab == Tab.MORE
 
     val play: (String, List<Stream>, Int) -> Unit = model.player::open
     val playChannel: (Channel, List<Channel>) -> Unit = model.player::openChannel
@@ -219,6 +229,7 @@ private fun App(model: AppViewModel, inPip: Boolean) {
     BackHandler(enabled = playing != null || tabIndex != 0 || openServer != null) {
         when {
             model.fullscreen -> model.fullscreen = false
+            mini -> tabIndex = 0
             playing != null -> model.closePlayer()
             inServer -> openServer = null
             else -> tabIndex = 0
@@ -302,17 +313,14 @@ private fun App(model: AppViewModel, inPip: Boolean) {
             Modifier.fillMaxSize().padding(if (videoOnly) PaddingValues(0.dp) else padding),
         ) {
             val windowHeight = minOf(maxWidth * 9f / 16f, maxHeight * 0.5f)
+            Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
-                // Always the first child, so the video is not rebuilt when the size changes.
-                if (playing != null) {
-                    PlayerPane(
-                        model, inPip,
-                        if (videoOnly) Modifier.fillMaxSize()
-                        else Modifier.fillMaxWidth().height(windowHeight),
-                    )
+                // The video is drawn on top (below), so it is not rebuilt when its size changes.
+                if (playing != null && !videoOnly && !mini) {
+                    Spacer(Modifier.fillMaxWidth().height(windowHeight))
                 }
                 if (!videoOnly) {
-                    NowPlayingBar(model)
+                    if (!mini) NowPlayingBar(model)
                     if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (searching && searchable && playing == null) {
                         OutlinedTextField(
@@ -363,6 +371,34 @@ private fun App(model: AppViewModel, inPip: Boolean) {
                         }
                     }
                 }
+            }
+            if (playing != null) {
+                val miniShape = RoundedCornerShape(12.dp)
+                val miniModifier = Modifier.align(Alignment.BottomEnd).padding(12.dp)
+                    .width(200.dp).aspectRatio(16f / 9f).clip(miniShape)
+                PlayerPane(
+                    model, inPip || mini,
+                    when {
+                        videoOnly -> Modifier.fillMaxSize()
+                        mini -> miniModifier
+                        else -> Modifier.align(Alignment.TopStart).fillMaxWidth().height(windowHeight)
+                    },
+                )
+                if (mini) {
+                    // Tap the small window to open the full player; the cross closes it.
+                    Box(miniModifier.clickable { tabIndex = Tab.CHANNELS.ordinal }) {
+                        IconButton(
+                            onClick = { model.closePlayer() },
+                            modifier = Modifier.align(Alignment.TopEnd).size(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Close, contentDescription = "Close player",
+                                tint = androidx.compose.ui.graphics.Color.White,
+                            )
+                        }
+                    }
+                }
+            }
             }
         }
     }

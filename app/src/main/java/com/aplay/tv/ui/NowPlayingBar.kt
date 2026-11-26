@@ -6,6 +6,14 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,95 +51,61 @@ import androidx.compose.ui.unit.sp
 import com.aplay.tv.AppViewModel
 import com.aplay.tv.Config
 
-/** Buttons and channel name under the small player window. */
+/** The channel that is playing, in a glass card under the player window. */
 @Composable
 fun NowPlayingBar(model: AppViewModel) {
     val context = LocalContext.current
     val player = model.player
     val playing = player.playing ?: return
     var servers by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(20.dp)
+    val edge = Color(0x40FFFFFF)
 
-    Column(
-        Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxWidth().clip(shape)
+                .background(Brush.verticalGradient(listOf(Color(0x40FFFFFF), Color(0x12FFFFFF))))
+                .border(1.dp, edge, shape)
+                .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Column(Modifier.weight(1f)) {
+                Text("● NOW PLAYING", color = LiveRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    playing.title,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (Config.TELEGRAM_URL.isNotBlank()) {
-                FilledTonalButton(
+                IconButton(
                     onClick = {
                         open(context, Intent(Intent.ACTION_VIEW, Uri.parse(Config.TELEGRAM_URL)))
                     },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
-                    Text(" Telegram", maxLines = 1)
-                }
+                ) { Icon(Icons.AutoMirrored.Filled.Send, "Telegram", tint = MaterialTheme.colorScheme.primary) }
             }
-            OutlinedButton(
-                onClick = { player.reload() },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 8.dp),
-            ) {
-                Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp))
-                Text(" Reload", maxLines = 1)
-            }
-            FilledTonalIconButton(
-                onClick = {
-                    val text = "Watching ${playing.title} on APlay ${Config.TELEGRAM_URL}".trim()
-                    val send = Intent(Intent.ACTION_SEND)
-                        .setType("text/plain")
-                        .putExtra(Intent.EXTRA_TEXT, text)
-                    model.skipPictureInPicture = true
-                    open(context, Intent.createChooser(send, "Share"))
-                },
-            ) { Icon(Icons.Filled.Share, "Share") }
-            FilledTonalIconButton(onClick = { model.fullscreen = true }) {
-                Icon(Icons.Filled.Fullscreen, "Full screen")
-            }
-        }
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("● NOW PLAYING", color = LiveRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        playing.title,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Box {
-                    OutlinedButton(onClick = { servers = true }) {
-                        Text(
-                            if (playing.streams.size > 1) {
-                                "${playing.streams[playing.server].name} ▾"
-                            } else {
-                                "Server 1"
+            Box {
+                Text(
+                    if (playing.streams.size > 1) "${playing.streams[playing.server].name} ▾" else "Server 1",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    modifier = Modifier.clip(RoundedCornerShape(50))
+                        .background(Color(0x26FFFFFF))
+                        .border(1.dp, edge, RoundedCornerShape(50))
+                        .clickable { servers = true }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                DropdownMenu(expanded = servers, onDismissRequest = { servers = false }) {
+                    playing.streams.forEachIndexed { index, stream ->
+                        DropdownMenuItem(
+                            text = { Text(if (playing.streams.size > 1) stream.name else "Server 1") },
+                            onClick = {
+                                servers = false
+                                player.selectServer(index)
                             },
-                            maxLines = 1,
                         )
-                    }
-                    DropdownMenu(expanded = servers, onDismissRequest = { servers = false }) {
-                        playing.streams.forEachIndexed { index, stream ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(if (playing.streams.size > 1) stream.name else "Server 1")
-                                },
-                                onClick = {
-                                    servers = false
-                                    player.selectServer(index)
-                                },
-                            )
-                        }
                     }
                 }
             }

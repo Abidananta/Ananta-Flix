@@ -33,6 +33,12 @@ object M3uParser {
         return link
     }
 
+    private val directExtensions = setOf("ts", "mpd", "mp4", "mkv", "flv", "aac", "mp3", "avi", "webm")
+
+    /** True for a link that is one video or audio stream itself, not a playlist to open. */
+    fun isDirectStream(link: String): Boolean =
+        link.substringBefore('?').substringAfterLast('.', "").lowercase() in directExtensions
+
     /** Reads a downloaded link, which is either a channel list or one video stream. */
     fun load(text: String, playlistName: String, source: String): List<Channel> {
         val singleStream = "#EXT-X-STREAM-INF" in text || "#EXT-X-TARGETDURATION" in text

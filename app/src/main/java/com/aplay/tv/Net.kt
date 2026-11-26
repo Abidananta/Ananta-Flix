@@ -21,8 +21,22 @@ object Net {
         }
     }
 
-    /** Downloads a text file, following redirects (including http to https). */
+    private val agents = listOf("APlay/1.0", "VLC/3.0.20 LibVLC/3.0.20", "Mozilla/5.0 (Linux; Android 13)")
+
+    /** Downloads a text file. Some servers refuse unknown apps, so other names are tried too. */
     fun fetch(address: String): String {
+        var failure: IOException? = null
+        for (agent in agents) {
+            try {
+                return fetchWith(address, agent)
+            } catch (e: IOException) {
+                failure = e
+            }
+        }
+        throw failure ?: IOException("Could not load")
+    }
+
+    private fun fetchWith(address: String, agent: String): String {
         var url = URL(address)
         repeat(6) {
             val connection = url.openConnection() as HttpURLConnection
@@ -30,7 +44,7 @@ object Net {
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 30_000
                 connection.instanceFollowRedirects = false
-                connection.setRequestProperty("User-Agent", "APlay/1.0")
+                connection.setRequestProperty("User-Agent", agent)
                 // Always ask for the newest copy, so an edited playlist shows up.
                 connection.useCaches = false
                 connection.setRequestProperty("Cache-Control", "no-cache")

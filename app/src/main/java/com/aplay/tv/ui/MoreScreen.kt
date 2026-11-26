@@ -58,7 +58,7 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
         SettingRow(Icons.AutoMirrored.Filled.PlaylistAdd, "My playlists", "Add M3U links or files") {
             dialog = Dialog.PLAYLISTS
         }
-        SettingRow(Icons.Filled.Scoreboard, "Matches source", "Link to your matches.json") {
+        SettingRow(Icons.Filled.Scoreboard, "Matches source", "Links to your matches.json files") {
             dialog = Dialog.MATCHES
         }
         SwitchRow(
@@ -206,7 +206,16 @@ private fun MatchesDialog(model: AppViewModel, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Matches source") },
-        text = { Field("matches.json link", url) { url = it } },
+        text = {
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("matches.json links (one per line)") },
+                minLines = 3,
+                maxLines = 6,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
         confirmButton = {
             TextButton(
                 onClick = {
