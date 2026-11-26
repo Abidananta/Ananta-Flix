@@ -2,6 +2,11 @@ name: Build APK
 
 # Push korlei GitHub nije APK baniye dibe.
 # APK paben: GitHub repo > Actions tab > Build APK run > Artifacts > app-debug
+#
+# NOTE: android-actions/setup-android@v3 use kora hoy NA — oita
+# "Failed to find package 'tools'" diye fail kore, karon 'tools'
+# package ar nei. ubuntu-latest runner e Android SDK age thekei
+# thake, tai sudhu dorkari component gulo install kora hoy.
 on:
   push:
     branches: [ main ]
@@ -23,8 +28,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android SDK components
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME/cmdline-tools"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
