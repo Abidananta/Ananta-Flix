@@ -13,8 +13,8 @@ package com.iptv.glass
  *    file with OkHttp, parses it and shows the channels.
  *  - Edit the file on GitHub and the app picks up the change automatically
  *    — no app update / rebuild is needed.
- *  - If the download fails (offline, bad URL, GitHub down) the app falls
- *    back to the bundled sample_playlist.m3u so it still opens.
+ *  - If the download fails (offline, bad URL, GitHub down) the app shows
+ *    an empty list with the error — there is no sample playlist fallback.
  *
  * The default below is the playlist the user supplied. Replace it with
  * your own playlist URL. Only use a playlist you have the right to use —

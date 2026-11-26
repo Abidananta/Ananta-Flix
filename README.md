@@ -14,15 +14,11 @@ M3U playlist hosted on GitHub.
 > does not copy any other app's brand, name, or social handles.** It plays
 > whatever playlist you point it at. Only use a playlist you have the
 > right to use, and respect the terms of the services whose streams it
-> lists. The bundled sample playlist contains only freely available
-> demo videos (Blender Foundation / Google sample streams).
-
+> lists. 
 > **This app is a player only. It does not supply any channels.** It plays
 > whatever playlist you point it at. Only use a playlist you have the
 > right to use, and respect the terms of the services whose streams it
-> lists. The bundled sample playlist contains only freely available
-> demo videos (Blender Foundation / Google sample streams).
-
+> lists. 
 ---
 
 ## What is inside
@@ -72,9 +68,9 @@ object AppConfig {
 ```
 
 - It **must be a Raw URL**: `https://raw.githubusercontent.com/<user>/<repo>/<branch>/<file>.m3u`
-- Do **not** use the `github.com/.../blob/...` page URL — that returns HTML, not M3U, and the app will fall back to the sample playlist.
+- Do **not** use the `github.com/.../blob/...` page URL — that returns HTML, not M3U, and the app will show an empty list with an error.
 - **Update without rebuilding:** edit the `.m3u` file on GitHub and the app picks it up on next start / pull-to-refresh (the refresh button in the Home header). No app update is needed.
-- If the download fails (offline, wrong URL, GitHub down) the app falls back to the bundled `app/src/main/assets/sample_playlist.m3u` and shows "Offline — showing sample playlist".
+- If the download fails (offline, wrong URL, GitHub down) the app shows an empty list with the error message. There is no sample playlist fallback.
 
 ### The configured playlist
 
@@ -196,7 +192,7 @@ Verified against the live file:
 `M3uParser.parse()` therefore joins an `#EXTINF` entry's continuation
 lines until it reaches the stream URL, then extracts the attributes and
 the name (text after the first comma outside quotes, whitespace-collapsed).
-The standard single-line form in `sample_playlist.m3u` parses identically.
+The standard single-line form parses identically.
 This was verified with a Python mirror of the parser against both forms.
 
 ## 6. Project layout
@@ -205,11 +201,9 @@ This was verified with a Python mirror of the parser against both forms.
 iptv-app/
 ├── README.md
 ├── settings.gradle.kts / build.gradle.kts / gradle.properties
-├── sample_playlist.m3u                  # demo playlist (legal sample streams only)
 └── app/
     ├── build.gradle.kts                 # Compose BOM, Media3, Coil, OkHttp, DataStore
     ├── src/main/AndroidManifest.xml     # INTERNET permission
-    ├── src/main/assets/sample_playlist.m3u
     └── src/main/java/com/iptv/glass/
         ├── AppConfig.kt                 # <<< edit PLAYLIST_URL / EPG_URL / TELEGRAM_URL here
         ├── GlassIptvApp.kt              # Application + Coil cache
@@ -218,7 +212,7 @@ iptv-app/
         ├── data/
         │   ├── M3uParser.kt             # multi-line M3U parser
         │   ├── EpgParser.kt             # XMLTV parser (best-effort)
-        │   ├── IptvRepository.kt        # GitHub fetch + fallback to sample, custom-URL override
+        │   ├── IptvRepository.kt        # GitHub fetch (no sample fallback), custom-URL override
         │   ├── ChannelLogoResolver.kt   # internet logos by channel name (iptv-org channels+logos APIs, 24h cache, monogram fallback)
         │   ├── FavoritesStore.kt        # DataStore favourites + recent
         │   └── SettingsStore.kt         # DataStore PiP / Data Saver / decoder / custom playlist URL
@@ -243,7 +237,7 @@ iptv-app/
 
 | Problem | Fix |
 |---|---|
-| App shows the sample playlist | Check `AppConfig.PLAYLIST_URL` is a **Raw** URL; check internet; tap Refresh |
+| App shows an empty list / error | Check `AppConfig.PLAYLIST_URL` is a **Raw** URL; check internet; tap Refresh |
 | A channel won't play / "Couldn't play this stream" | Live stream links can expire — update the playlist on GitHub, then refresh in the app |
 | No EPG info | EPG is off by default (`EPG_URL = ""`) or the feed has no programme for that `tvg-id` |
 | Series tab is empty | The current playlist has no `group-title="Series"` group yet — add one to the M3U and refresh |

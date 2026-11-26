@@ -33,7 +33,7 @@ import com.iptv.glass.model.Channel
  *     A stray trailing character on a URL line is trimmed only if it is
  *     whitespace; the token itself is left untouched.
  *
- * Standard single-line form (sample_playlist.m3u) parses identically:
+ * Standard single-line form parses identically:
  *     #EXTINF:-1 tvg-id="bbb" tvg-logo="…" group-title="Movies",Big Buck Bunny (Demo)
  *     https://…/BigBuckBunny.mp4
  */

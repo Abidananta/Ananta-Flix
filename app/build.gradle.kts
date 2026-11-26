@@ -1,7 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
+    // No org.jetbrains.kotlin.plugin.compose — it does not exist for
+    // Kotlin 1.9.24 (only from Kotlin 2.0). See root build.gradle.kts.
 }
 
 android {
@@ -41,7 +42,10 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.9.24"
+        // 1.5.14 is the Compose compiler extension for Kotlin 1.9.24.
+        // "1.9.24" here is wrong — that is the Kotlin version, not the
+        // compiler extension version.
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
     packaging {
         resources {

@@ -12,9 +12,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Loads the playlist from the GitHub Raw URL in AppConfig, parses it,
- * and (optionally) loads the XMLTV EPG. Falls back to the bundled
- * sample_playlist.m3u (assets) when the network fetch fails, so the
- * app always opens — even offline.
+ * and (optionally) loads the XMLTV EPG. There is NO sample playlist
+ * fallback: if the download fails, the app shows an empty list with
+ * the error message, so the user knows to check the playlist URL.
  */
 class IptvRepository(private val context: Context) {
 
@@ -27,8 +27,8 @@ class IptvRepository(private val context: Context) {
     data class LoadResult(
         val channels: List<Channel>,
         val epg: List<EpgProgram>,
-        /** True when the bundled sample was used instead of GitHub. */
-        val usedFallback: Boolean,
+        /** Kept for compatibility; always false — no sample fallback. */
+        val usedFallback: Boolean = false,
         val errorMessage: String? = null
     )
 
@@ -37,20 +37,18 @@ class IptvRepository(private val context: Context) {
      * that URL is fetched instead of [AppConfig.PLAYLIST_URL].
      */
     suspend fun loadAll(playlistUrlOverride: String? = null): LoadResult = withContext(Dispatchers.IO) {
-        var usedFallback = false
         var error: String? = null
         val playlistUrl = playlistUrlOverride?.takeIf { it.isNotBlank() } ?: AppConfig.PLAYLIST_URL
-        val m3uText: String = try {
+        val m3uText: String? = try {
             downloadText(playlistUrl)
                 .takeIf { it.contains("#EXTINF") }
                 ?: throw IllegalStateException("Downloaded file is not an M3U playlist")
         } catch (e: Exception) {
-            usedFallback = true
             error = e.message
-            context.assets.open("sample_playlist.m3u").bufferedReader().use { it.readText() }
+            null
         }
 
-        val channels = M3uParser.parse(m3uText)
+        val channels = if (m3uText == null) emptyList() else M3uParser.parse(m3uText)
 
         val epg: List<EpgProgram> = if (AppConfig.EPG_URL.isBlank()) {
             emptyList() // EPG disabled — UI shows "No EPG info"
@@ -61,7 +59,7 @@ class IptvRepository(private val context: Context) {
                 emptyList()
             }
         }
-        LoadResult(channels, epg, usedFallback, error)
+        LoadResult(channels, epg, usedFallback = false, errorMessage = error)
     }
 
     /** Distinct categories (group-title values) in first-seen order, with counts. */
