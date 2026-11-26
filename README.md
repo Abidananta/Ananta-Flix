@@ -29,7 +29,7 @@ M3U playlist hosted on GitHub.
 | M3U parsing | `data/M3uParser.kt` — handles single-line **and** multi-line `#EXTINF` entries (see below) |
 | Categories | Dynamic, from `group-title` in the playlist (Family, Movies, Sports, Live Action, Documentary, Drama, Teen, Comedy, Musical, Fantasy, Adventure, Science Fiction, …) |
 | Live vs Movies vs Series | Live = HLS (`.m3u8`); Movies = `group-title="Movies"` (+ VOD files); Series = `group-title="Series"` |
-| Player | Media3 ExoPlayer — HLS (`.m3u8`) and MP4/MKV, play/pause, seek for VOD, fullscreen (landscape), Picture-in-Picture when enabled, Data Saver caps quality to SD, "SERVER 1" pill |
+| Player | One shared Media3 ExoPlayer owned by `MainViewModel` — HLS (`.m3u8`) and MP4/MKV. Plays INLINE in the Channels screen's top player area (no new window); Fullscreen reuses the same player. Play/pause via PlayerView controls, seek for VOD, Picture-in-Picture when enabled, Data Saver caps quality to SD, "SERVER 1" pill. Detects expired signed stream tokens before playing (see "Stream token expiry") |
 | EPG | Optional XMLTV feed in `AppConfig.EPG_URL`; shows current/next programme, otherwise "No EPG info" |
 | Logos | Coil, white rounded-square logo tiles. Priority: playlist `tvg-logo` → iptv-org database looked up by channel name (see "Channel logos" below) → monogram tile with the channel's initials on a name-based gradient |
 | Favourites / Recent | DataStore (persisted locally, survives restarts) |
@@ -80,7 +80,45 @@ lists 76 live HLS channels. Its format has two quirks the parser was
 built for — see "M3U format notes" below. No stream URLs from that
 playlist are copied into this repo; the app downloads it at runtime.
 
-## 2b. Channel logos — loaded from the internet by channel name
+## 2a. Inline playback (Nexa-style) — no new window
+
+Tapping a channel tile does **not** open a new screen. The stream plays
+inline in the pure-black player area at the top of the Channels screen,
+exactly like the reference app, while the 3-column channel grid stays
+visible below. The same applies from Matches, Favorites, Live TV and the
+Detail screen's Play button, and from More > Network Stream: they all
+start playback on the Channels tab, in that top player area.
+
+How it works: there is exactly **one** ExoPlayer in the whole app, owned
+by `MainViewModel` (`playChannel()`, `sharedPlayer`). The Channels
+screen's top area (`PlayerArea` in `ui/components/GlassComponents.kt`)
+binds a `PlayerView` to it. The **Fullscreen** button (action row, or the
+Now Playing bar) is the only thing that opens the fullscreen player
+screen — and that screen binds a second `PlayerView` to the *same*
+player, so going fullscreen never re-buffers or restarts the stream.
+Pressing Back returns to Channels with playback continuing inline.
+
+## 2b. Stream token expiry — why a channel can show "Source error"
+
+Every stream URL in the supplied playlist carries a signed
+`edge-cache-token` with `Expires=<epoch>` — and all 76 URLs share the
+same one (verified live: `Expires=1795703429`, i.e. 2026-11-26 14:30 UTC).
+The token lasts about **1 hour**. Once it has passed, the CDN refuses
+the stream (empty reply / 403), and **no player code, header or setting
+can play that URL** — the link itself is dead.
+
+The app detects this before trying to play: `MainViewModel` parses
+`Expires=` from the URL, and if it is in the past it does not attempt
+playback at all — the player area shows
+"Stream token expired — playlist GitHub e notun token diye update korun"
+instead of a generic Source error. To fix it, regenerate the playlist
+with a fresh token (new `edge-cache-token` / `Expires` value) and push
+the updated `.m3u` file to GitHub; the app picks it up on the next
+start / pull-to-refresh, no rebuild needed. A generic "Source error"
+with a valid token usually means the server is blocking the device or
+region, or the link itself is offline.
+
+## 2c. Channel logos — loaded from the internet by channel name
 
 Channel logos do **not** have to be in the playlist. `data/ChannelLogoResolver.kt`
 resolves them in three steps, after the channel list has already loaded
@@ -216,9 +254,9 @@ iptv-app/
         │   ├── ChannelLogoResolver.kt   # internet logos by channel name (iptv-org channels+logos APIs, 24h cache, monogram fallback)
         │   ├── FavoritesStore.kt        # DataStore favourites + recent
         │   └── SettingsStore.kt         # DataStore PiP / Data Saver / decoder / custom playlist URL
-        ├── viewmodel/MainViewModel.kt   # loading, search, category filter, EPG, now-playing, settings, logo resolution
+        ├── viewmodel/MainViewModel.kt   # loading, search, category filter, EPG, now-playing, settings, logo resolution, ONE shared ExoPlayer (playChannel, token-expiry check)
         ├── ui/theme/Theme.kt            # dark navy + cyan palette, gradients, monogram palettes, typography
-        ├── ui/components/GlassComponents.kt  # GlassCard, GlassChip, ChannelLogo (white tile + monogram), ChannelTile, ChannelTileGrid, PlayerArea, NowPlayingBar, NexaIcon
+        ├── ui/components/GlassComponents.kt  # GlassCard, GlassChip, ChannelLogo (white tile + monogram), ChannelTile, ChannelTileGrid, PlayerArea (real inline PlayerView), SharedPlayerView, NowPlayingBar, NexaIcon
         └── ui/screens/
             ├── ChannelsScreen.kt        # main tab: search, chips, Now Playing bar, 3-column tile grid
             ├── HomeScreen.kt            # compatibility wrapper delegating to ChannelsScreen
@@ -230,7 +268,7 @@ iptv-app/
             ├── SeriesScreen.kt          # empty state until playlist has a Series group
             ├── FavoritesScreen.kt       # tile grid
             ├── DetailScreen.kt          # logo, EPG now/next, Watch button
-            └── PlayerScreen.kt          # Media3 ExoPlayer, SERVER 1 pill, PiP, Data Saver, fullscreen
+            └── PlayerScreen.kt          # Fullscreen ONLY — reuses the shared player, SERVER 1 pill, PiP, fullscreen (landscape)
 ```
 
 ## 7. Troubleshooting
@@ -239,6 +277,8 @@ iptv-app/
 |---|---|
 | App shows an empty list / error | Check `AppConfig.PLAYLIST_URL` is a **Raw** URL; check internet; tap Refresh |
 | A channel won't play / "Couldn't play this stream" | Live stream links can expire — update the playlist on GitHub, then refresh in the app |
+| Player area says "Stream token expired" | The `edge-cache-token` in every stream URL has an `Expires=` time (about 1 hour). Regenerate the playlist with a fresh token, push the new `.m3u` to GitHub, then pull to refresh in the app. No player setting can play an expired token |
+| Tapping a channel opens a new window | It shouldn't — taps play inline in the top player area. Only the Fullscreen button opens the fullscreen screen (same player, no re-buffer) |
 | No EPG info | EPG is off by default (`EPG_URL = ""`) or the feed has no programme for that `tvg-id` |
 | Series tab is empty | The current playlist has no `group-title="Series"` group yet — add one to the M3U and refresh |
 | Matches tab has no channels | The playlist has no `group-title="Sports"` group yet — add one to the M3U and refresh. No scores/fixtures are shown by design |

@@ -64,7 +64,7 @@ fun LiveTvScreen(
         ChannelTileGrid(
             channels = live,
             onTileClick = { channel ->
-                viewModel.setNowPlaying(channel)
+                // onPlay (MainActivity) plays inline and goes to Channels.
                 onPlay(channel)
             }
         )

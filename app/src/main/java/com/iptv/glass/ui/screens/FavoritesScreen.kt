@@ -41,7 +41,7 @@ fun FavoritesScreen(
         ChannelTileGrid(
             channels = favChannels,
             onTileClick = { channel ->
-                viewModel.setNowPlaying(channel)
+                // onPlay (MainActivity) plays inline and goes to Channels.
                 onPlay(channel)
             }
         )

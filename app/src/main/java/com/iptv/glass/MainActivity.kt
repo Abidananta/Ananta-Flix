@@ -84,6 +84,22 @@ class MainActivity : ComponentActivity() {
                     Screen.Favorites.route, Screen.More.route
                 )
 
+                // Inline playback (Nexa-style): every Play action starts
+                // the stream in the Channels screen's top player area and
+                // goes to that tab — no new window opens. Only the
+                // Fullscreen button opens the fullscreen player screen.
+                val playInline: (com.iptv.glass.model.Channel) -> Unit = { channel ->
+                    viewModel.playChannel(channel)
+                    navController.navigate(Screen.Channels.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+                val openFullscreen: (com.iptv.glass.model.Channel) -> Unit = { channel ->
+                    navController.navigate("player/${channel.id}")
+                }
+
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
@@ -99,12 +115,12 @@ class MainActivity : ComponentActivity() {
                     ) {
                         NavHost(navController, startDestination = Screen.Channels.route) {
                             composable(Screen.Matches.route) {
-                                MatchesScreen(viewModel) { navController.navigate("player/${it.id}") }
+                                MatchesScreen(viewModel, onPlay = playInline)
                             }
                             composable(Screen.Channels.route) {
                                 ChannelsScreen(
                                     viewModel = viewModel,
-                                    onPlay = { navController.navigate("player/${it.id}") },
+                                    onFullscreen = openFullscreen,
                                     onOpenDetail = { navController.navigate("detail/${it.id}") }
                                 )
                             }
@@ -119,17 +135,26 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             composable(Screen.Favorites.route) {
-                                FavoritesScreen(viewModel) { navController.navigate("player/${it.id}") }
+                                FavoritesScreen(viewModel, onPlay = playInline)
                             }
                             composable(Screen.More.route) {
-                                MoreScreen(viewModel) { channel ->
-                                    navController.navigate("player/${channel.id}")
+                                // playNetworkStream() already starts inline
+                                // playback in the ViewModel; just go to the
+                                // Channels tab so the video is visible.
+                                MoreScreen(viewModel) { _ ->
+                                    navController.navigate(Screen.Channels.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             }
+                            // Fullscreen ONLY: reuses the shared player that
+                            // is already playing inline — no re-buffering.
                             composable("player/{channelId}") { entry ->
                                 val channel = viewModel.findChannel(entry.arguments?.getString("channelId").orEmpty())
                                 if (channel != null) {
-                                    PlayerScreen(channel, viewModel) { navController.popBackStack() }
+                                    PlayerScreen(viewModel, channel) { navController.popBackStack() }
                                 } else {
                                     Text("Channel not found", color = GlassText)
                                 }
@@ -140,7 +165,7 @@ class MainActivity : ComponentActivity() {
                                     DetailScreen(
                                         channel = channel,
                                         viewModel = viewModel,
-                                        onPlay = { navController.navigate("player/${it.id}") },
+                                        onPlay = playInline,
                                         onBack = { navController.popBackStack() }
                                     )
                                 } else {

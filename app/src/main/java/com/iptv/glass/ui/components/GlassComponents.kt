@@ -1,5 +1,7 @@
 package com.iptv.glass.ui.components
 
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,11 +28,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,10 +54,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.iptv.glass.data.ChannelLogoResolver
 import com.iptv.glass.model.Channel
 import com.iptv.glass.model.EpgProgram
+import com.iptv.glass.viewmodel.MainViewModel
 import com.iptv.glass.ui.theme.GlassMuted
 import com.iptv.glass.ui.theme.GlassText
 import com.iptv.glass.ui.theme.GlassWhite12
@@ -351,85 +362,171 @@ fun ChannelTileGrid(
 }
 
 /**
- * Pure-black top player area, like the reference app's video area at
- * the top of the Channels screen. It is a preview of the channel that
- * is playing (or a hint when nothing is playing yet) — tapping it
- * opens the full player.
+ * A PlayerView bound to the ViewModel's single shared ExoPlayer.
+ * Detaches (player = null) when this view leaves the composition, so
+ * the fullscreen screen can bind the SAME player without re-buffering.
+ */
+@OptIn(UnstableApi::class)
+@Composable
+fun SharedPlayerView(
+    viewModel: MainViewModel,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                useController = true
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+        },
+        update = { view -> view.player = viewModel.sharedPlayer },
+        onDispose = { view -> view.player = null },
+        modifier = modifier
+    )
+}
+
+/**
+ * The REAL top player area of the Channels screen, exactly like the
+ * reference app: the stream plays INLINE in this pure-black area at
+ * the top of the screen while the channel grid stays visible below.
+ * Tapping a tile does NOT open a new screen — it starts playback here.
+ *
+ * States:
+ *  - nothing played yet: hint ("Tap a channel below to start watching");
+ *  - token expired / playback error: the error is shown INSIDE this
+ *    black area (with a Retry button), never as a full-screen page;
+ *  - otherwise: the shared player's video, with PlayerView controls
+ *    (play/pause, seek for VOD). Fullscreen is only via the action-row
+ *    Fullscreen button, which reuses this same player.
  */
 @Composable
 fun PlayerArea(
-    channel: Channel?,
-    nowProgram: EpgProgram?,
-    onPlay: () -> Unit,
+    viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
+    val channel by viewModel.nowPlaying.collectAsState()
+    val playbackError by viewModel.playbackError.collectAsState()
+    val tokenExpired by viewModel.tokenExpired.collectAsState()
+    val player = viewModel.sharedPlayer
+    val nowProgram = channel?.let { viewModel.nowProgram(it) }
+
+    // No clickable on this Box: the PlayerView owns all touch handling
+    // (tap = show controls). Fullscreen is only via the action-row
+    // Fullscreen button, exactly like the reference app.
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(210.dp)
-            .background(NexaPlayerBlack)
-            .clickable(enabled = channel != null) { onPlay() },
+            .background(NexaPlayerBlack),
         contentAlignment = Alignment.Center
     ) {
-        if (channel == null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .border(1.5.dp, NexaCyan, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = NexaCyan,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Tap a channel below to start watching",
-                    color = GlassMuted,
-                    fontSize = 13.sp
-                )
-            }
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(NexaCyan),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    channel.name,
-                    color = GlassText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(LiveRed))
-                    Spacer(Modifier.width(6.dp))
+        when {
+            channel == null -> {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .border(1.5.dp, NexaCyan, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = NexaCyan,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
                     Text(
-                        (nowProgram?.title ?: "Live") + "  •  Tap for fullscreen",
+                        "Tap a channel below to start watching",
+                        color = GlassMuted,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+            tokenExpired || playbackError != null -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                ) {
+                    Text(
+                        if (tokenExpired) "Stream token expired" else "Couldn't play this stream",
+                        color = GlassText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        playbackError
+                            ?: "Source error — playlist GitHub e notun token diye update korun",
                         color = GlassMuted,
                         fontSize = 12.sp,
-                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (channel != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            channel.name,
+                            color = GlassMuted,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { viewModel.retryPlayback() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NexaCyan,
+                            contentColor = Color.Black
+                        )
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Retry", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            player != null -> {
+                // The video itself, with PlayerView controls.
+                SharedPlayerView(viewModel, modifier = Modifier.fillMaxSize())
+                // Channel name + EPG line over the bottom of the video.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp),
+                    contentAlignment = Alignment.BottomStart
+                ) {
+                    Column {
+                        Text(
+                            channel.name,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            nowProgram?.title ?: "Live",
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            else -> {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Loading ${channel.name}…", color = GlassMuted, fontSize = 13.sp)
                 }
             }
         }

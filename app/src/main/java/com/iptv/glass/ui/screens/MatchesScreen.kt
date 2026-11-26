@@ -70,7 +70,7 @@ fun MatchesScreen(
         ChannelTileGrid(
             channels = sports,
             onTileClick = { channel ->
-                viewModel.setNowPlaying(channel)
+                // onPlay (MainActivity) plays inline and goes to Channels.
                 onPlay(channel)
             }
         )

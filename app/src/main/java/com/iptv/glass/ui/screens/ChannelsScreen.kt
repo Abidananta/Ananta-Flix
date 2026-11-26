@@ -59,21 +59,25 @@ import com.iptv.glass.viewmodel.MainViewModel
  * Channels — the main tab, laid out exactly like the reference app's
  * Channels screens (screenshots 1 and 3):
  *
- *  - Pure-black player area at the top (the video area).
+ *  - Pure-black player area at the top where the stream plays INLINE —
+ *    tapping a tile starts playback here, in this area, while the grid
+ *    stays visible below. No new window opens.
  *  - Action row under it: "Join Telegram" (cyan outline button, only
  *    when AppConfig.TELEGRAM_URL is set) + Reload + Share + Fullscreen
- *    (small dark squares, Fullscreen with a cyan border).
+ *    (small dark squares, Fullscreen with a cyan border). Fullscreen is
+ *    the ONLY thing that opens the fullscreen player screen, and it
+ *    reuses the same shared player — no re-buffering.
  *  - "NOW PLAYING CHANNEL" bar with the channel name and a SERVER 1 pill.
  *  - App-name header with search + reload icons (search field opens on tap).
  *  - Category chips in a horizontal row — "All" first, then the
  *    playlist's group-titles, name only (no counts).
  *  - A 3-column grid of white-logo tiles on phones (4 on wide screens),
- *    channel name in white below each logo. Tap a tile to play.
+ *    channel name in white below each logo. Tap a tile to play inline.
  */
 @Composable
 fun ChannelsScreen(
     viewModel: MainViewModel,
-    onPlay: (Channel) -> Unit,
+    onFullscreen: (Channel) -> Unit,
     onOpenDetail: (Channel) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -88,11 +92,8 @@ fun ChannelsScreen(
 
     Column(modifier.fillMaxSize()) {
         // Black player area at the very top (reference screenshot 1).
-        PlayerArea(
-            channel = nowPlaying,
-            nowProgram = nowPlaying?.let { viewModel.nowProgram(it) },
-            onPlay = { nowPlaying?.let { onPlay(it) } }
-        )
+        // The stream plays inline here — no navigation happens on tap.
+        PlayerArea(viewModel)
 
         // Action row: Join Telegram / Reload / Share / Fullscreen.
         Row(
@@ -143,7 +144,7 @@ fun ChannelsScreen(
             NexaSquareIconButton(
                 icon = Icons.Default.Fullscreen,
                 contentDescription = "Fullscreen",
-                onClick = { nowPlaying?.let { onPlay(it) } },
+                onClick = { nowPlaying?.let { onFullscreen(it) } },
                 tint = NexaCyan,
                 borderColor = NexaCyan
             )
@@ -154,7 +155,7 @@ fun ChannelsScreen(
             NowPlayingBar(
                 channel = playing,
                 nowProgram = viewModel.nowProgram(playing),
-                onClick = { onPlay(playing) },
+                onClick = { onFullscreen(playing) },
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
             Spacer(Modifier.height(10.dp))
@@ -246,11 +247,11 @@ fun ChannelsScreen(
         }
 
         // 3-column tile grid on phones, 4 on wide/tablet screens.
+        // Tap = play INLINE in the top player area (no new window).
         ChannelTileGrid(
             channels = channels,
             onTileClick = { channel ->
-                viewModel.setNowPlaying(channel)
-                if (channel.isVod) onOpenDetail(channel) else onPlay(channel)
+                if (channel.isVod) onOpenDetail(channel) else viewModel.playChannel(channel)
             }
         )
     }
