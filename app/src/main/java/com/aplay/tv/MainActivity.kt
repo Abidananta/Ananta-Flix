@@ -1,19 +1,30 @@
 package com.aplay.tv
 
+import android.app.PictureInPictureParams
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Rational
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -22,6 +33,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,30 +49,133 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.aplay.tv.ui.ALL_CHANNELS
 import com.aplay.tv.ui.APlayTheme
 import com.aplay.tv.ui.Accent
+import com.aplay.tv.ui.AddPlaylistDialog
 import com.aplay.tv.ui.CategoriesScreen
 import com.aplay.tv.ui.ChannelsScreen
 import com.aplay.tv.ui.FavoritesScreen
 import com.aplay.tv.ui.MatchesScreen
 import com.aplay.tv.ui.MoreScreen
+import com.aplay.tv.ui.NowPlayingBar
+import com.aplay.tv.ui.PlayerPane
+import com.aplay.tv.ui.ServerDialog
 
 class MainActivity : ComponentActivity() {
+    private val model: AppViewModel by viewModels()
+    private var inPip by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
-        setContent { APlayTheme { App() } }
+        if (savedInstanceState == null) receive(intent)
+        setContent {
+            // Full screen turns the phone sideways and hides the system bars.
+            val fullscreen = model.fullscreen
+            LaunchedEffect(fullscreen) { applyScreenMode(fullscreen) }
+            APlayTheme { App(model, inPip) }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receive(intent)
+    }
+
+    /** A link shared to the app, or a playlist file opened with it. */
+    private fun receive(intent: Intent) {
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+                model.fullscreen = false
+                model.showAddPlaylist(M3uParser.cleanLink(text) ?: text.trim())
+            }
+            Intent.ACTION_VIEW -> {
+                val file = intent.data ?: return
+                model.fullscreen = false
+                model.importPlaylist(file)
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        model.player.resume()
+        model.refreshIfStale()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        model.skipPictureInPicture = false
+    }
+
+    override fun onStop() {
+        if (!isChangingConfigurations) model.player.suspend()
+        super.onStop()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && model.fullscreen) applyScreenMode(true)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (model.pictureInPicture && model.player.isPlaying && !model.skipPictureInPicture) {
+            enterPip()
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPip = isInPictureInPictureMode
+    }
+
+    private fun applyScreenMode(fullscreen: Boolean) {
+        // Phones stay upright outside full screen; tablets and TVs rotate freely.
+        requestedOrientation = when {
+            fullscreen -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            resources.configuration.smallestScreenWidthDp < 600 ->
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            if (fullscreen) {
+                systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    private fun enterPip() {
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        try {
+            enterPictureInPictureMode(
+                PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build()
+            )
+        } catch (e: IllegalStateException) {
+            // The phone does not allow a floating window right now.
+        }
     }
 }
 
@@ -74,20 +189,22 @@ private enum class Tab(val label: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun App(model: AppViewModel = viewModel()) {
+private fun App(model: AppViewModel, inPip: Boolean) {
     val context = LocalContext.current
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     var category by rememberSaveable { mutableStateOf(ALL_CHANNELS) }
+    var showServers by rememberSaveable { mutableStateOf(false) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     val tab = Tab.entries[tabIndex]
     val searchable = tab == Tab.CHANNELS || tab == Tab.CATEGORIES || tab == Tab.FAVORITES
     val activeQuery = if (searching && searchable) query else ""
+    val playing = model.player.playing
+    // Only the video is shown in full screen and in the floating window.
+    val videoOnly = playing != null && (model.fullscreen || inPip)
 
-    val play: (String, List<Stream>, Int) -> Unit = { title, streams, index ->
-        context.startActivity(PlayerActivity.intent(context, title, streams, index))
-    }
-    val playChannel: (Channel) -> Unit = { play(it.name, listOf(it.stream), 0) }
+    val play: (String, List<Stream>, Int) -> Unit = model.player::open
+    val playChannel: (Channel, List<Channel>) -> Unit = model.player::openChannel
 
     LaunchedEffect(model.message) {
         model.message?.let {
@@ -95,11 +212,28 @@ private fun App(model: AppViewModel = viewModel()) {
             model.message = null
         }
     }
-    BackHandler(enabled = tabIndex != 0) { tabIndex = 0 }
+    BackHandler(enabled = playing != null || tabIndex != 0) {
+        when {
+            model.fullscreen -> model.fullscreen = false
+            playing != null -> model.closePlayer()
+            else -> tabIndex = 0
+        }
+    }
+
+    AddPlaylistDialog(model)
+    if (showServers) ServerDialog(model) { showServers = false }
+
+    // The chosen server decides which channels the Channels and Categories tabs show.
+    val serverChannels = remember(model.channels, model.sourceChannels, model.selectedServer) {
+        model.serverChannels()
+    }
+    val serverLabel = model.servers.firstOrNull { it.key == model.selectedServer && it.enabled }?.name
+        ?: "All servers"
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            // The player window takes the place of the title bar.
+            if (playing == null) TopAppBar(
                 title = { Text("APlay", color = Accent, fontWeight = FontWeight.Black) },
                 actions = {
                     if (searchable) {
@@ -113,6 +247,9 @@ private fun App(model: AppViewModel = viewModel()) {
                             )
                         }
                     }
+                    IconButton(onClick = { model.showAddPlaylist() }) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add playlist")
+                    }
                     IconButton(onClick = model::refresh) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                     }
@@ -120,7 +257,7 @@ private fun App(model: AppViewModel = viewModel()) {
             )
         },
         bottomBar = {
-            NavigationBar {
+            if (!videoOnly) NavigationBar {
                 Tab.entries.forEach { item ->
                     NavigationBarItem(
                         selected = item == tab,
@@ -143,34 +280,62 @@ private fun App(model: AppViewModel = viewModel()) {
             }
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (searching && searchable) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text("Search") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                )
-            }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when (tab) {
-                    Tab.MATCHES -> MatchesScreen(model.matches, play)
-                    Tab.CHANNELS -> ChannelsScreen(
-                        model.channels, category, { category = it }, activeQuery,
-                        model.favorites, model::toggleFavorite, playChannel,
+        BoxWithConstraints(
+            Modifier.fillMaxSize().padding(if (videoOnly) PaddingValues(0.dp) else padding),
+        ) {
+            val windowHeight = minOf(maxWidth * 9f / 16f, maxHeight * 0.5f)
+            Column(Modifier.fillMaxSize()) {
+                // Always the first child, so the video is not rebuilt when the size changes.
+                if (playing != null) {
+                    PlayerPane(
+                        model, inPip,
+                        if (videoOnly) Modifier.fillMaxSize()
+                        else Modifier.fillMaxWidth().height(windowHeight),
                     )
-                    Tab.CATEGORIES -> CategoriesScreen(model.channels, activeQuery) {
-                        category = it
-                        searching = false
-                        tabIndex = Tab.CHANNELS.ordinal
+                }
+                if (!videoOnly) {
+                    NowPlayingBar(model)
+                    if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (searching && searchable && playing == null) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = { Text("Search") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        )
                     }
-                    Tab.FAVORITES -> FavoritesScreen(
-                        model.channels, activeQuery, model.favorites,
-                        model::toggleFavorite, playChannel,
-                    )
-                    Tab.MORE -> MoreScreen(model, play)
+                    // Shown while only the demo channels are loaded.
+                    if (tab == Tab.CHANNELS && playing == null && model.playlists.isEmpty() &&
+                        Config.DEFAULT_PLAYLIST_URL.isBlank()
+                    ) {
+                        Button(
+                            onClick = { model.showAddPlaylist() },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        ) { Text("+ Add your playlist") }
+                    }
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        when (tab) {
+                            Tab.MATCHES -> MatchesScreen(model.matches, play)
+                            Tab.CHANNELS -> ChannelsScreen(
+                                serverChannels, category, { category = it }, activeQuery,
+                                model.favorites, model::toggleFavorite, playChannel,
+                                playing?.let { it.channelId ?: "" },
+                                serverLabel, { showServers = true },
+                            )
+                            Tab.CATEGORIES -> CategoriesScreen(serverChannels, activeQuery) {
+                                category = it
+                                searching = false
+                                tabIndex = Tab.CHANNELS.ordinal
+                            }
+                            Tab.FAVORITES -> FavoritesScreen(
+                                model.channels, activeQuery, model.favorites,
+                                model::toggleFavorite, playChannel,
+                                playing?.let { it.channelId ?: "" },
+                            )
+                            Tab.MORE -> MoreScreen(model, play)
+                        }
+                    }
                 }
             }
         }

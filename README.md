@@ -21,9 +21,35 @@ GitHub builds the APK, so you do not need Android Studio. Works on Android 8.0 a
 If the build shows a red cross, open it, copy the lines that start with `e:` or
 `What went wrong`, and send them to whoever is helping you.
 
+## Player
+
+- Tapping a channel or match plays it in a window at the top of the screen.
+- Controls stay hidden. Tap the video to show them.
+- The full screen button turns the video sideways. There you also get the equalizer and the
+  channel list. Press and hold a channel in that list to move it.
+- To show a **Telegram** button, set `TELEGRAM_URL` in `Config.kt`.
+
+## Servers
+
+Beside the category chips on the **Channels** tab there is a **server** button. It lists every
+playlist and file you added (links, `.m3u` files, the `playlists` folder). Tap one to show only its
+channels, switch it on or off, edit it, or add a new one. The list reloads by itself every few
+minutes and when you return to the app, so edits to an online playlist show up without pressing Refresh.
+
 ## Add your channels
 
-In the app: **More > My playlists** (M3U link or file).
+**Easiest:** use the `playlists` folder. Put links in `playlists/links.txt` or upload `.m3u` files
+there. See `playlists/HOW_TO_ADD.md`.
+
+Any of these works:
+
+- Press **+** at the top, paste an M3U link and press **Add**.
+- Press **+**, then **Choose a file from phone**.
+- In a browser or chat app, **Share** a playlist link and choose **APlay**.
+- Open an `.m3u` file with **APlay**.
+
+The app tests a link before saving it. Turn playlists on or off, rename or delete them in
+**More > My playlists**.
 
 To give every user the same list, edit `app/src/main/java/com/aplay/tv/Config.kt`:
 
@@ -32,7 +58,7 @@ const val DEFAULT_PLAYLIST_URL = "https://example.com/my.m3u"
 const val DEFAULT_MATCHES_URL = "https://example.com/matches.json"
 ```
 
-Commit the change and GitHub builds a new APK. Until a link is added, the app shows demo streams.
+Commit the change and GitHub builds a new APK. Until a playlist is added, the app shows demo streams.
 
 ## Matches file
 

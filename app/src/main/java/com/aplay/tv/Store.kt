@@ -39,6 +39,22 @@ class Store(context: Context) {
         get() = prefs.getStringSet("favorites", emptySet()).orEmpty().toSet()
         set(value) = prefs.edit().putStringSet("favorites", value).apply()
 
+    var channelOrder: List<String>
+        get() {
+            val array = JSONArray(prefs.getString("channelOrder", "[]"))
+            return (0 until array.length()).map { array.getString(it) }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { array.put(it) }
+            prefs.edit().putString("channelOrder", array.toString()).apply()
+        }
+
+    /** The playlist chosen in the server list. Empty means all servers. */
+    var selectedServer: String
+        get() = prefs.getString("selectedServer", "").orEmpty()
+        set(value) = prefs.edit().putString("selectedServer", value).apply()
+
     var matchesUrl: String
         get() = prefs.getString("matchesUrl", "").orEmpty()
         set(value) = prefs.edit().putString("matchesUrl", value).apply()

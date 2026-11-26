@@ -5,6 +5,42 @@ import java.net.URLDecoder
 object M3uParser {
     private val attribute = Regex("""([A-Za-z0-9_-]+)="([^"]*)"""")
 
+    private val webLink = Regex("""https?://\S+""", RegexOption.IGNORE_CASE)
+    private val githubPage = Regex(
+        """^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/blob/(.+)$""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * Turns whatever was pasted or shared into a link that can be downloaded.
+     * Returns null if there is no web link in it.
+     */
+    fun cleanLink(input: String): String? {
+        val text = input.trim()
+        var link = webLink.find(text)?.value
+        if (link == null) {
+            // A link typed without https://
+            val looksLikeAddress = "://" !in text && text.none { it.isWhitespace() } &&
+                '.' in text.substringBefore('/') && '/' in text
+            if (!looksLikeAddress) return null
+            link = "https://$text"
+        }
+        // A GitHub file page is changed to the file itself.
+        githubPage.find(link)?.let {
+            val (user, repo, path) = it.destructured
+            return "https://raw.githubusercontent.com/$user/$repo/${path.substringBefore('?')}"
+        }
+        return link
+    }
+
+    /** Reads a downloaded link, which is either a channel list or one video stream. */
+    fun load(text: String, playlistName: String, source: String): List<Channel> {
+        val singleStream = "#EXT-X-STREAM-INF" in text || "#EXT-X-TARGETDURATION" in text
+        if (!singleStream) return parse(text)
+        if (!source.startsWith("http", ignoreCase = true)) return emptyList()
+        return listOf(Channel(playlistName, "", "My links", Stream(playlistName, source)))
+    }
+
     fun parse(text: String): List<Channel> {
         val result = mutableListOf<Channel>()
         var info: String? = null

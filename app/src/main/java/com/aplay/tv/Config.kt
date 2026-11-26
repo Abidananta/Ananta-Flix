@@ -5,6 +5,9 @@ package com.aplay.tv
  * Leave them empty to show the built-in demo data until the user adds a link in the app.
  */
 object Config {
-    const val DEFAULT_PLAYLIST_URL = "https://raw.githubusercontent.com/Abidananta/toffee/refs/heads/main/toffee_playlist.m3u"
-    const val DEFAULT_MATCHES_URL = "https://raw.githubusercontent.com/sm-monirulislam/Upcoming-and-Live-Sports-Data/refs/heads/main/Sports_data.json"
+    const val DEFAULT_PLAYLIST_URL = ""
+    const val DEFAULT_MATCHES_URL = ""
+
+    /** Your Telegram link. The "Join Telegram" button stays hidden while this is empty. */
+    const val TELEGRAM_URL = ""
 }

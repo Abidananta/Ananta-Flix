@@ -1,7 +1,5 @@
 package com.aplay.tv.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,7 +12,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.DataSaverOn
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -23,7 +20,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -39,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aplay.tv.AppViewModel
@@ -51,9 +46,6 @@ private enum class Dialog { NONE, STREAM, PLAYLISTS, MATCHES }
 @Composable
 fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit) {
     var dialog by rememberSaveable { mutableStateOf(Dialog.NONE) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) model.importPlaylist(uri)
-    }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
@@ -101,11 +93,7 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
                 onPlay("Network stream", listOf(it), 0)
             },
         )
-        Dialog.PLAYLISTS -> PlaylistDialog(
-            model = model,
-            onImport = { picker.launch(arrayOf("*/*")) },
-            onDismiss = { dialog = Dialog.NONE },
-        )
+        Dialog.PLAYLISTS -> PlaylistManagerDialog(model) { dialog = Dialog.NONE }
         Dialog.MATCHES -> MatchesDialog(model) { dialog = Dialog.NONE }
     }
 }
@@ -209,53 +197,6 @@ private fun StreamDialog(onDismiss: () -> Unit, onPlay: (Stream) -> Unit) {
             ) { Text("Play") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun PlaylistDialog(model: AppViewModel, onImport: () -> Unit, onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var url by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("My playlists") },
-        text = {
-            Column(
-                Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                model.playlists.forEach { playlist ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            playlist.name,
-                            Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Switch(
-                            checked = playlist.enabled,
-                            onCheckedChange = { model.setPlaylistEnabled(playlist.id, it) },
-                        )
-                        IconButton(onClick = { model.removePlaylist(playlist) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
-                        }
-                    }
-                }
-                Field("Name", name) { name = it }
-                Field("M3U link", url) { url = it }
-                TextButton(
-                    enabled = url.trim().startsWith("http", ignoreCase = true),
-                    onClick = {
-                        model.addPlaylist(name, url)
-                        name = ""
-                        url = ""
-                    },
-                ) { Text("Add link") }
-                TextButton(onClick = onImport) { Text("Import M3U file from phone") }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
     )
 }
 

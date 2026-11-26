@@ -29,6 +29,13 @@ android {
         }
     }
 
+    // Everything in the top-level "playlists" folder is packed into the app.
+    sourceSets {
+        getByName("main") {
+            assets.setSrcDirs(listOf("src/main/builtin", "../playlists"))
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

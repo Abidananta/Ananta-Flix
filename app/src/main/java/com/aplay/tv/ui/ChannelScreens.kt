@@ -1,10 +1,12 @@
 package com.aplay.tv.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,7 +44,10 @@ fun ChannelsScreen(
     query: String,
     favorites: Set<String>,
     onFavorite: (Channel) -> Unit,
-    onPlay: (Channel) -> Unit,
+    onPlay: (Channel, List<Channel>) -> Unit,
+    playingId: String?,
+    serverLabel: String,
+    onServers: () -> Unit,
 ) {
     val categories = listOf(ALL_CHANNELS) + channels.map { it.group }.distinct()
     val active = if (category in categories) category else ALL_CHANNELS
@@ -50,11 +55,15 @@ fun ChannelsScreen(
         (active == ALL_CHANNELS || it.group == active) && it.name.contains(query, ignoreCase = true)
     }
     Column(Modifier.fillMaxSize()) {
-        ChipRow(categories, active, onCategory)
+        // The server button stays; the chips are hidden under the player to leave room for channels.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ServerButton(serverLabel, onServers)
+            if (playingId == null) Box(Modifier.weight(1f)) { ChipRow(categories, active, onCategory) }
+        }
         if (visible.isEmpty()) {
             EmptyMessage("No channels found.")
         } else {
-            ChannelGrid(visible, favorites, onFavorite, onPlay)
+            ChannelGrid(visible, favorites, onFavorite, onPlay, playingId)
         }
     }
 }
@@ -65,13 +74,14 @@ fun FavoritesScreen(
     query: String,
     favorites: Set<String>,
     onFavorite: (Channel) -> Unit,
-    onPlay: (Channel) -> Unit,
+    onPlay: (Channel, List<Channel>) -> Unit,
+    playingId: String?,
 ) {
     val visible = channels.filter { it.id in favorites && it.name.contains(query, ignoreCase = true) }
     if (visible.isEmpty()) {
         EmptyMessage("No favorites yet.\nTap the heart on a channel to keep it here.")
     } else {
-        ChannelGrid(visible, favorites, onFavorite, onPlay)
+        ChannelGrid(visible, favorites, onFavorite, onPlay, playingId)
     }
 }
 
@@ -80,19 +90,22 @@ private fun ChannelGrid(
     channels: List<Channel>,
     favorites: Set<String>,
     onFavorite: (Channel) -> Unit,
-    onPlay: (Channel) -> Unit,
+    onPlay: (Channel, List<Channel>) -> Unit,
+    playingId: String?,
 ) {
+    val compact = playingId != null
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(104.dp),
+        columns = GridCells.Adaptive(if (compact) 76.dp else 104.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(channels, key = { it.id }) { channel ->
             val favorite = channel.id in favorites
             Card(
-                modifier = Modifier.clickable { onPlay(channel) },
+                modifier = Modifier.clickable { onPlay(channel, channels) },
+                border = if (channel.id == playingId) BorderStroke(2.dp, Accent) else null,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             ) {
                 Box {
@@ -113,7 +126,7 @@ private fun ChannelGrid(
                     }
                     IconButton(
                         onClick = { onFavorite(channel) },
-                        modifier = Modifier.align(Alignment.TopEnd).size(36.dp),
+                        modifier = Modifier.align(Alignment.TopEnd).size(if (compact) 28.dp else 36.dp),
                     ) {
                         Icon(
                             imageVector = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
