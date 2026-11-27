@@ -4,3 +4,4 @@ Server 2 | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/
 Server 3 | https://raw.githubusercontent.com/Tapas-Creation/M3U-Live/refs/heads/main/Skym3u.dev/7B.m3u
 Server 4 | https://raw.githubusercontent.com/iptv-org/iptv/refs/heads/master/streams/in.m3u
 Server 5 | https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd_main.m3u
+Sony Liv |https://raw.githubusercontent.com/sm-monirulislam/SonyLiv_Event_Playlist/refs/heads/main/sonyLiv.m3u
