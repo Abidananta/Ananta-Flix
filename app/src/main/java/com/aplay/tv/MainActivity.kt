@@ -1,5 +1,6 @@
 package com.aplay.tv
 
+import androidx.compose.material3.MaterialTheme
 import android.os.Build
 import com.aplay.tv.ui.AplayLogo
 import androidx.compose.material3.TopAppBarDefaults
