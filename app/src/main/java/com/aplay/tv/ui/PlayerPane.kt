@@ -1,5 +1,6 @@
 package com.aplay.tv.ui
 
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.CircleShape
 import android.view.LayoutInflater
@@ -326,6 +327,10 @@ private fun BoxScope.Controls(
             if (fullscreen) {
                 RoundButton(Icons.Filled.GraphicEq, "Equalizer") { onMenu(PlayerMenu.EQUALIZER) }
                 RoundButton(Icons.AutoMirrored.Filled.ChannelListIcon, "Channel list", onClick = onChannelList)
+            }
+            RoundButton(Icons.Filled.PictureInPictureAlt, "Floating window") {
+                onTouch()
+                model.requestPip()
             }
             RoundButton(Icons.Filled.AspectRatio, "Screen size") {
                 onTouch()

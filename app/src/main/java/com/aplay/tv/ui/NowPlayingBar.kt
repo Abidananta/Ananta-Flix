@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.aplay.tv.AppViewModel
 import com.aplay.tv.Config
 
-private val NpCard = Color(0xFF141824)
+private val NpCard = Color(0xB3141824)
 private val NpBorder = Color(0xFF262B3A)
 private val NpPill = Color(0xFF1E2433)
 private val NpPillBorder = Color(0xFF2E3547)

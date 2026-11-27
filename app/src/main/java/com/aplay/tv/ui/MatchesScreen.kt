@@ -131,7 +131,8 @@ private fun MatchCard(match: Match, now: Long, onClick: () -> Unit) {
     val start = Date(match.startMillis)
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = GlassFill),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassStroke),
     ) {
         Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(

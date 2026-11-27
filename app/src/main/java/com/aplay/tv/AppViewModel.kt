@@ -84,6 +84,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private var lastLoaded = 0L
 
+    /** Counts presses of the floating-window button in the player. */
+    var pipRequest by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+
+    fun requestPip() {
+        pipRequest++
+    }
+
+    /** Match schedules found inside playlist links (a JSON instead of an M3U), by link. */
+    private val jsonTexts = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     /** True when the app runs on an Android TV. */
     val isTv: Boolean = (getApplication<Application>().getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)
         ?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
@@ -226,6 +237,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun reloadUnsafe(silent: Boolean, savedOnly: Boolean) {
         this.savedOnly = savedOnly
+        jsonTexts.clear()
         if (!silent) loading = true
         val errors = mutableListOf<String>()
         val files = withContext(Dispatchers.IO) { folderFiles() }
@@ -290,7 +302,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     var problem: String? = null
                     val list = try {
                         loadSource(name, source).also {
-                            if (it.isEmpty()) problem = "$name: no channels found"
+                            if (it.isEmpty() && !jsonTexts.containsKey(source)) problem = "$name: no channels found"
                         }
                     } catch (e: CancellationException) {
                         throw e
@@ -303,7 +315,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }.awaitAll()
         }
         results.forEach { (_, problem) -> if (problem != null) errors += problem }
-        return results.map { it.first }
+        return results.map { it.first }.filter { !jsonTexts.containsKey(it.key) }
     }
 
     /**
@@ -334,9 +346,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 errors += "$name: ${e.message ?: "could not load"}"
             }
         }
-        val unique = sources.distinctBy { it.second }
-        if (unique.isEmpty()) return parseMatches(asset("demo/matches.json"), now)
-        return unique.flatMap { (name, source) ->
+        val unique = sources.distinctBy { it.second }.filter { !jsonTexts.containsKey(it.second) }
+        // Schedules that were found in the playlist links are already downloaded.
+        val inPlaylists = jsonTexts.entries.toList().flatMap { (link, text) ->
+            try {
+                parseMatches(text, now)
+            } catch (e: Exception) {
+                errors += "${link.substringAfterLast('/')}: ${e.message ?: "could not read"}"
+                emptyList()
+            }
+        }
+        if (unique.isEmpty() && jsonTexts.isEmpty()) return parseMatches(asset("demo/matches.json"), now)
+        return (unique.flatMap { (name, source) ->
             try {
                 parseMatches(read(source), now)
             } catch (e: CancellationException) {
@@ -345,7 +366,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 errors += "$name: ${e.message ?: "could not load"}"
                 emptyList()
             }
-        }.distinct().sortedBy { it.startMillis }
+        } + inPlaylists).distinct().sortedBy { it.startMillis }
     }
 
     /**
@@ -354,6 +375,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun loadSource(name: String, source: String, depth: Int = 0): List<Channel> {
         val text = read(source)
+        // A JSON link in a playlist list is a match schedule, not a server.
+        if (text.trimStart().let { it.startsWith("{") || it.startsWith("[") }) {
+            jsonTexts[source] = text
+            return emptyList()
+        }
         val direct = M3uParser.load(text, name, source)
         if (direct.isNotEmpty() || depth >= 2) return direct
         val result = mutableListOf<Channel>()
@@ -553,10 +579,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             addError = null
             try {
                 val count = withContext(Dispatchers.IO) {
-                    loadSource(title, link).size
+                    val channelCount = loadSource(title, link).size
+                    // A link to a match schedule (JSON) counts too.
+                    if (channelCount == 0) {
+                        jsonTexts[link]?.let { parseMatches(it, System.currentTimeMillis()).size } ?: 0
+                    } else channelCount
                 }
                 if (count == 0) {
-                    addError = "No channels found. Check that this is an M3U playlist link."
+                    addError = "No channels or matches found. Check the link."
                 } else {
                     val playlist = Playlist(old?.id ?: UUID.randomUUID().toString(), title, link)
                     message = "$title: $count channels added"

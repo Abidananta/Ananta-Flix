@@ -1,5 +1,8 @@
 package com.aplay.tv
 
+import android.os.Build
+import com.aplay.tv.ui.AplayLogo
+import androidx.compose.material3.TopAppBarDefaults
 import com.aplay.tv.ui.TvActivateScreen
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.verticalScroll
@@ -115,6 +118,11 @@ class MainActivity : ComponentActivity() {
             // Full screen turns the phone sideways and hides the system bars.
             val fullscreen = model.fullscreen
             LaunchedEffect(fullscreen) { applyScreenMode(fullscreen) }
+            // Keep the floating-window shape up to date, and open it when the button is pressed.
+            LaunchedEffect(model.player.isPlaying, model.player.playing?.channelId, model.pictureInPicture) {
+                updatePip()
+            }
+            LaunchedEffect(model.pipRequest) { if (model.pipRequest > 0) enterPip() }
             APlayTheme {
                 if (model.isTv && !model.tvActive) TvActivateScreen(model) else App(model, inPip)
                 var crash by remember { mutableStateOf(lastCrash) }
@@ -190,7 +198,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (model.pictureInPicture && model.player.isPlaying && !model.skipPictureInPicture) {
+        // From Android 12 the window enters by itself (see pipParams); older phones enter here.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S &&
+            model.pictureInPicture && model.player.isPlaying && !model.skipPictureInPicture
+        ) {
             enterPip()
         }
     }
@@ -222,12 +233,36 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** The floating window takes the shape of the video, and opens by itself when the app is left. */
+    private fun pipParams(): PictureInPictureParams {
+        val size = model.player.exo?.videoSize
+        val ratio = if (size != null && size.width > 0 && size.height > 0) {
+            (size.width.toFloat() / size.height).coerceIn(0.42f, 2.39f)
+        } else {
+            16f / 9f
+        }
+        val builder = PictureInPictureParams.Builder().setAspectRatio(Rational((ratio * 1000).toInt(), 1000))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(
+                model.pictureInPicture && model.player.isPlaying && !model.skipPictureInPicture
+            )
+        }
+        return builder.build()
+    }
+
+    private fun updatePip() {
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        try {
+            setPictureInPictureParams(pipParams())
+        } catch (e: IllegalStateException) {
+            // The phone does not allow it right now.
+        }
+    }
+
     private fun enterPip() {
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
         try {
-            enterPictureInPictureMode(
-                PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build()
-            )
+            if (enterPictureInPictureMode(pipParams())) inPip = true
         } catch (e: IllegalStateException) {
             // The phone does not allow a floating window right now.
         }
@@ -249,13 +284,11 @@ private fun App(model: AppViewModel, inPip: Boolean) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     var category by rememberSaveable { mutableStateOf(ALL_CHANNELS) }
     var showServers by rememberSaveable { mutableStateOf(false) }
-    // The server whose channels are open in the Servers tab. Null shows the server cards, "" is all servers.
-    var openServer by rememberSaveable { mutableStateOf<String?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     val tab = Tab.entries[tabIndex]
-    val inServer = tab == Tab.SERVERS && openServer != null
-    val searchable = tab == Tab.CHANNELS || tab == Tab.SERVERS || tab == Tab.FAVORITES
+    // Channels has its own search field under the Now Playing card.
+    val searchable = tab == Tab.SERVERS || tab == Tab.FAVORITES
     val activeQuery = if (searching && searchable) query else ""
     val playing = model.player.playing
     // Only the video is shown in full screen and in the floating window.
@@ -272,12 +305,12 @@ private fun App(model: AppViewModel, inPip: Boolean) {
             model.message = null
         }
     }
-    BackHandler(enabled = playing != null || tabIndex != 0 || openServer != null) {
+    BackHandler(enabled = playing != null || tabIndex != 0) {
         when {
             model.fullscreen -> model.fullscreen = false
             mini -> tabIndex = 0
             playing != null -> model.closePlayer()
-            inServer -> openServer = null
+            tab == Tab.CHANNELS -> tabIndex = Tab.SERVERS.ordinal
             else -> tabIndex = 0
         }
     }
@@ -285,9 +318,11 @@ private fun App(model: AppViewModel, inPip: Boolean) {
     AddPlaylistDialog(model)
     if (showServers) ServerDialog(model) { showServers = false }
 
-    val serverTitle = model.servers.firstOrNull { it.key == openServer }?.name ?: "All servers"
-    val serverChannels = remember(model.channels, model.sourceChannels, openServer) {
-        val own = openServer?.let { model.sourceChannels[it] }
+    // The Channels tab shows only the chosen server (the first one until a server is chosen).
+    val currentServer = model.servers.firstOrNull { it.key == model.selectedServer && it.enabled }
+        ?: model.servers.firstOrNull { it.enabled }
+    val serverChannels = remember(model.channels, model.sourceChannels, currentServer?.key) {
+        val own = currentServer?.let { model.sourceChannels[it.key] }
         if (own == null) model.channels else {
             val rank = model.channels.withIndex().associate { it.value.id to it.index }
             own.sortedBy { rank[it.id] ?: Int.MAX_VALUE }
@@ -295,16 +330,25 @@ private fun App(model: AppViewModel, inPip: Boolean) {
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             // The player window takes the place of the title bar.
             if (playing == null) TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                ),
                 title = {
-                    if (inServer) Text(serverTitle, fontWeight = FontWeight.Black, maxLines = 1)
-                    else Text("APlay", color = Accent, fontWeight = FontWeight.Black)
+                    if (tab == Tab.CHANNELS && currentServer != null) {
+                        Text(currentServer.name, fontWeight = FontWeight.Black, maxLines = 1)
+                    } else {
+                        AplayLogo(32.dp)
+                    }
                 },
                 navigationIcon = {
-                    if (inServer) IconButton(onClick = { openServer = null }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    if (tab == Tab.CHANNELS) IconButton(onClick = { tabIndex = Tab.SERVERS.ordinal }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Servers")
                     }
                 },
                 actions = {
@@ -319,9 +363,6 @@ private fun App(model: AppViewModel, inPip: Boolean) {
                             )
                         }
                     }
-                    IconButton(onClick = { model.showAddPlaylist() }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Add playlist")
-                    }
                     IconButton(onClick = model::refresh) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                     }
@@ -329,14 +370,11 @@ private fun App(model: AppViewModel, inPip: Boolean) {
             )
         },
         bottomBar = {
-            if (!videoOnly) NavigationBar {
+            if (!videoOnly) NavigationBar(containerColor = androidx.compose.ui.graphics.Color(0x24FFFFFF)) {
                 Tab.entries.forEach { item ->
                     NavigationBarItem(
                         selected = item == tab,
-                        onClick = {
-                            if (item == Tab.SERVERS) openServer = null
-                            tabIndex = item.ordinal
-                        },
+                        onClick = { tabIndex = item.ordinal },
                         icon = {
                             Icon(
                                 when (item) {
@@ -377,34 +415,22 @@ private fun App(model: AppViewModel, inPip: Boolean) {
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                         )
                     }
-                    // Shown while only the demo channels are loaded.
-                    if (tab == Tab.CHANNELS && playing == null && model.playlists.isEmpty() &&
-                        Config.DEFAULT_PLAYLIST_URL.isBlank()
-                    ) {
-                        Button(
-                            onClick = { model.showAddPlaylist() },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                        ) { Text("+ Add your playlist") }
-                    }
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         when (tab) {
                             Tab.MATCHES -> MatchesScreen(model.matches, play)
                             Tab.CHANNELS -> ChannelsScreen(
-                                model.channels, category, { category = it }, activeQuery,
+                                serverChannels, category, { category = it }, "",
                                 model.favorites, model::toggleFavorite, playChannel,
                                 playing?.let { it.channelId ?: "" },
                             )
-                            Tab.SERVERS -> if (inServer) ChannelsScreen(
-                                serverChannels, category, { category = it }, activeQuery,
-                                model.favorites, model::toggleFavorite, playChannel,
-                                playing?.let { it.channelId ?: "" },
-                            ) else ServersScreen(
+                            Tab.SERVERS -> ServersScreen(
                                 model, activeQuery,
                                 onOpen = {
+                                    model.selectServer(it)
                                     category = ALL_CHANNELS
                                     searching = false
                                     query = ""
-                                    openServer = it
+                                    tabIndex = Tab.CHANNELS.ordinal
                                 },
                                 onManage = { showServers = true },
                             )

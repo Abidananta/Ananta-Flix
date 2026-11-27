@@ -1,5 +1,14 @@
 package com.aplay.tv.ui
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,13 +59,37 @@ fun ChannelsScreen(
 ) {
     val categories = remember(channels) { listOf(ALL_CHANNELS) + channels.map { it.group }.distinct() }
     val active = if (category in categories) category else ALL_CHANNELS
-    val visible = remember(channels, active, query) {
+    var typed by rememberSaveable { mutableStateOf("") }
+    val search = typed.trim().ifEmpty { query }
+    val visible = remember(channels, active, search) {
         channels.filter {
-            (active == ALL_CHANNELS || it.group == active) && it.name.contains(query, ignoreCase = true)
+            (active == ALL_CHANNELS || it.group == active) && it.name.contains(search, ignoreCase = true)
         }.distinctBy { it.id }
     }
     Column(Modifier.fillMaxSize()) {
-        // Categories stay visible under the Now Playing card.
+        // Search sits under the Now Playing card; categories come after it.
+        OutlinedTextField(
+            value = typed,
+            onValueChange = { typed = it },
+            placeholder = { Text("Search channels") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (typed.isNotEmpty()) {
+                    IconButton(onClick = { typed = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Clear")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = GlassFillStrong,
+                unfocusedContainerColor = GlassFill,
+                unfocusedBorderColor = GlassStroke,
+                focusedBorderColor = Accent,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        )
         ChipRow(categories, active, onCategory)
         if (visible.isEmpty()) {
             EmptyMessage("No channels found.")
@@ -103,8 +136,8 @@ private fun ChannelGrid(
             val favorite = channel.id in favorites
             Card(
                 modifier = Modifier.clickable { onPlay(channel, channels) },
-                border = if (channel.id == playingId) BorderStroke(2.dp, Accent) else null,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                border = if (channel.id == playingId) BorderStroke(2.dp, Accent) else BorderStroke(1.dp, GlassStroke),
+                colors = CardDefaults.cardColors(containerColor = GlassFill),
             ) {
                 Box {
                     Column(
@@ -156,7 +189,7 @@ fun CategoriesScreen(channels: List<Channel>, query: String, onOpen: (String) ->
         items(categories, key = { it.first }) { (name, count) ->
             Card(
                 modifier = Modifier.clickable { onOpen(name) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                colors = CardDefaults.cardColors(containerColor = GlassFill),
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
                     Icon(Icons.Filled.Folder, contentDescription = null, tint = Accent)

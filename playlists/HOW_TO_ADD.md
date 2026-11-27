@@ -45,3 +45,8 @@ tokhon notun APK build korte hobe.
 Ei APK Android TV te-o install kora jay. TV te prothom bar khulle ekta code dekhay.
 Phone e APlay te More > Activate TV te oi code likhle TV active hoy, ar phone er playlist
 link, matches link ar app color TV te chole jay. (Online service: ntfy.sh, account lage na.)
+
+## Matches JSON ekhon links.txt e-i
+`links.txt` e match JSON er link-o dewa jay (`Matches | https://.../Sports_data.json`).
+App nije bujhe je eta JSON, tai eta Servers e ashe na, Matches tab e match hishebe ashe.
+More > Match schedule e puro schedule dekha jay.

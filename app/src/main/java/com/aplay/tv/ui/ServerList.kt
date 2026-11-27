@@ -1,5 +1,7 @@
 package com.aplay.tv.ui
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.filled.Add
@@ -69,7 +71,8 @@ fun ServerButton(label: String, onClick: () -> Unit) {
  */
 @Composable
 fun ServerDialog(model: AppViewModel, onDismiss: () -> Unit) {
-    val chosen = model.servers.firstOrNull { it.key == model.selectedServer && it.enabled }?.key.orEmpty()
+    val chosen = model.servers.firstOrNull { it.key == model.selectedServer && it.enabled }?.key
+        ?: model.servers.firstOrNull { it.enabled }?.key.orEmpty()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -79,15 +82,6 @@ fun ServerDialog(model: AppViewModel, onDismiss: () -> Unit) {
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                ServerRow(
-                    selected = chosen.isEmpty(),
-                    title = "All servers",
-                    subtitle = "${model.channels.size} channels",
-                    onSelect = {
-                        model.selectServer("")
-                        onDismiss()
-                    },
-                )
                 model.servers.forEach { server ->
                     ServerRow(
                         selected = chosen == server.key,
@@ -154,15 +148,6 @@ private fun ServerRow(
     }
 }
 
-private class ServerCard(
-    val key: String?,
-    val name: String,
-    val subtitle: String,
-    val logo: String,
-    val enabled: Boolean,
-    val server: com.aplay.tv.Server?,
-)
-
 /** The Servers tab: one card per playlist or file. Tap opens its channels, long press manages it. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -172,19 +157,11 @@ fun ServersScreen(
     onOpen: (String) -> Unit,
     onManage: () -> Unit,
 ) {
-    val cards = buildList {
-        add(ServerCard(null, "All servers", "${model.channels.size} channels",
-            model.channels.firstOrNull { it.logo.isNotBlank() }?.logo.orEmpty(), true, null))
-        model.servers.forEach { s ->
-            add(ServerCard(
-                s.key, s.name,
-                if (s.enabled) "${s.count} channels" else "Off",
-                model.sourceChannels[s.key]?.firstOrNull { it.logo.isNotBlank() }?.logo.orEmpty(),
-                s.enabled, s,
-            ))
-        }
-    }.filter { it.name.contains(query, ignoreCase = true) }.distinctBy { it.key }
-
+    val servers = model.servers.filter { it.name.contains(query, ignoreCase = true) }.distinctBy { it.key }
+    if (servers.isEmpty()) {
+        EmptyMessage("No servers yet.\nAdd links to playlists/links.txt on GitHub.")
+        return
+    }
     androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
         columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
         modifier = Modifier.fillMaxSize(),
@@ -192,22 +169,15 @@ fun ServersScreen(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(cards, key = { it.key ?: "__all" }) { card ->
-            val selected = false
+        items(servers, key = { it.key }) { server ->
             ServerTile(
-                name = card.name,
-                subtitle = card.subtitle,
-                selected = selected,
-                dimmed = !card.enabled,
-                onClick = { if (card.enabled) onOpen(card.key.orEmpty()) else onManage() },
+                name = server.name,
+                subtitle = if (server.enabled) "${server.count} channels" else "Off",
+                selected = server.key == model.selectedServer,
+                dimmed = !server.enabled,
+                onClick = { if (server.enabled) onOpen(server.key) else onManage() },
                 onLongClick = onManage,
-            ) {
-                if (card.key == null || card.logo.isNotBlank()) {
-                    Logo(card.logo, card.name, Modifier.size(56.dp))
-                } else {
-                    Icon(Icons.Filled.Dns, contentDescription = null, tint = Accent, modifier = Modifier.size(32.dp))
-                }
-            }
+            )
         }
     }
 }
@@ -221,23 +191,25 @@ private fun ServerTile(
     dimmed: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    icon: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(20.dp)
     Column(
         Modifier.fillMaxWidth().clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .border(1.dp, if (selected) Accent else MaterialTheme.colorScheme.outlineVariant, shape)
+            .background(Brush.verticalGradient(listOf(GlassFillStrong, GlassFill)))
+            .border(1.dp, if (selected) Accent else GlassStroke, shape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 8.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Every server uses the APlay logo as its picture.
         Box(
             Modifier.size(70.dp).clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+                .background(GlassFill)
+                .border(1.dp, GlassStroke, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
-        ) { icon() }
+        ) {
+            AplayMark(Modifier.size(52.dp).alpha(if (dimmed) 0.4f else 1f))
+        }
         Text(
             name,
             Modifier.padding(top = 10.dp),

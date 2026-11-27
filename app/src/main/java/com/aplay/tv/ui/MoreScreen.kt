@@ -1,5 +1,7 @@
 package com.aplay.tv.ui
 
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.heightIn
 import com.aplay.tv.TvPairing
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Check
@@ -86,7 +88,7 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
         SettingRow(Icons.AutoMirrored.Filled.PlaylistAdd, "My playlists", "Add M3U links or files") {
             dialog = Dialog.PLAYLISTS
         }
-        SettingRow(Icons.Filled.Scoreboard, "Matches source", "Links to your matches.json files") {
+        SettingRow(Icons.Filled.Scoreboard, "Match schedule", "The schedule from your JSON links") {
             dialog = Dialog.MATCHES
         }
         SwitchRow(
@@ -122,7 +124,7 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
             },
         )
         Dialog.PLAYLISTS -> PlaylistManagerDialog(model) { dialog = Dialog.NONE }
-        Dialog.MATCHES -> MatchesDialog(model) { dialog = Dialog.NONE }
+        Dialog.MATCHES -> ScheduleDialog(model) { dialog = Dialog.NONE }
         Dialog.COLOR -> ColorDialog(model) { dialog = Dialog.NONE }
         Dialog.TV -> TvCodeDialog(model) { dialog = Dialog.NONE }
     }
@@ -138,7 +140,8 @@ private fun SettingRow(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = GlassFill),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassStroke),
     ) {
         Row(
             Modifier.padding(14.dp),
@@ -314,5 +317,45 @@ private fun TvCodeDialog(model: AppViewModel, onDismiss: () -> Unit) {
             ) { Text("Activate") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun ScheduleDialog(model: AppViewModel, onDismiss: () -> Unit) {
+    val format = remember { java.text.SimpleDateFormat("EEE d MMM, h:mm a", java.util.Locale.getDefault()) }
+    val now = System.currentTimeMillis()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Match schedule") },
+        text = {
+            if (model.matches.isEmpty()) {
+                Text(
+                    "No matches yet. Put a JSON link in playlists/links.txt on GitHub and the " +
+                        "schedule shows here and in Matches.",
+                )
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    Modifier.heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(model.matches.sortedBy { it.startMillis }) { match ->
+                        Column {
+                            Text(
+                                if (match.away.name.isEmpty()) match.home.name
+                                else "${match.home.name} vs ${match.away.name}",
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                "${match.league} · ${format.format(java.util.Date(match.startMillis))} · " +
+                                    match.status(now).name.lowercase().replaceFirstChar { it.uppercase() },
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
 }

@@ -1,5 +1,14 @@
 package com.aplay.tv.ui
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.Modifier
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -32,17 +41,23 @@ val AccentChoices = listOf(
     "Orange" to Color(0xFFFB923C),
 )
 
+/** Frosted-glass look: a see-through white fill with a thin light edge. */
+val GlassFill = Color(0x1FFFFFFF)
+val GlassFillStrong = Color(0x2EFFFFFF)
+val GlassStroke = Color(0x33FFFFFF)
+
 private val Colors = darkColorScheme(
-    background = Color(0xFF121110),
-    onBackground = Color(0xFFF2EEE8),
-    surface = Color(0xFF121110),
-    onSurface = Color(0xFFF2EEE8),
-    surfaceVariant = Color(0xFF262320),
-    onSurfaceVariant = Color(0xFFA39E96),
-    surfaceContainer = Color(0xFF1D1B19),
-    surfaceContainerHigh = Color(0xFF262320),
-    surfaceContainerHighest = Color(0xFF302C28),
-    outline = Color(0xFF4A453F),
+    background = Color(0xFF0B0F1A),
+    onBackground = Color(0xFFEEF1F8),
+    surface = Color(0xFF0D1322),
+    onSurface = Color(0xFFEEF1F8),
+    surfaceVariant = Color(0xFF232A40),
+    onSurfaceVariant = Color(0xFFA3ABBF),
+    surfaceContainer = Color(0xFF171C2B),
+    surfaceContainerHigh = Color(0xFF1C2236),
+    surfaceContainerHighest = Color(0xFF232A40),
+    outline = Color(0xFF3A4259),
+    outlineVariant = Color(0x33FFFFFF),
 )
 
 @Composable
@@ -60,5 +75,29 @@ fun APlayTheme(content: @Composable () -> Unit) {
             onSecondaryContainer = onContainer,
         )
     }
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = scheme) {
+        // A deep blue background with a soft glow of the app colour, behind everything.
+        Box(
+            Modifier.fillMaxSize()
+                .background(Brush.verticalGradient(listOf(Color(0xFF0E1527), Color(0xFF070910))))
+                .drawBehind {
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(accent.copy(alpha = 0.22f), Color.Transparent),
+                            center = Offset(size.width * 0.9f, 0f),
+                            radius = size.width * 0.9f,
+                        )
+                    )
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(accent.copy(alpha = 0.10f), Color.Transparent),
+                            center = Offset(0f, size.height * 0.85f),
+                            radius = size.width,
+                        )
+                    )
+                },
+        ) {
+            CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
+        }
+    }
 }
