@@ -1,5 +1,6 @@
 package com.aplay.tv.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.CircleShape
@@ -73,6 +74,28 @@ private enum class PlayerMenu { NONE, QUALITY, EQUALIZER }
 
 private val Shade = Color(0x99000000)
 
+// Round dark buttons with a thin edge, like the NexaPlay player.
+private val ButtonFill = Color(0xE60E1320)
+private val ButtonEdge = Color(0xFF2B3448)
+
+/** The spinner shown while the video loads: a dark circle with a ring in the app colour. */
+@Composable
+private fun LoadingSpinner(modifier: Modifier = Modifier) {
+    Box(
+        modifier.size(66.dp).clip(CircleShape).background(ButtonFill)
+            .border(1.dp, Accent.copy(alpha = 0.45f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(36.dp),
+            color = Accent,
+            trackColor = Color.Transparent,
+            strokeWidth = 3.dp,
+            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+        )
+    }
+}
+
 /** The video with its controls. Used both as the small window and in full screen. */
 @Composable
 fun PlayerPane(model: AppViewModel, inPip: Boolean, modifier: Modifier = Modifier) {
@@ -119,7 +142,7 @@ fun PlayerPane(model: AppViewModel, inPip: Boolean, modifier: Modifier = Modifie
         )
         if (!inPip) {
             if (player.isBuffering && !controls) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center), color = Accent)
+                LoadingSpinner(Modifier.align(Alignment.Center))
             }
 
             if (controls && !channelList && player.error == null) {
@@ -243,14 +266,20 @@ private fun BoxScope.Controls(
                 player.selectServer((playing.server + 1) % playing.streams.size)
             }
         }
-        Text(
-            if (live) "● LIVE" else "● VOD",
-            color = if (live) LiveRed else Accent,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.clip(RoundedCornerShape(50)).background(Shade)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-        )
+        val badge = if (live) LiveRed else Accent
+        Row(
+            Modifier.clip(RoundedCornerShape(50)).background(badge.copy(alpha = 0.18f))
+                .border(1.dp, badge, RoundedCornerShape(50))
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(badge))
+            Text(
+                if (live) "LIVE" else "VOD",
+                Modifier.padding(start = 6.dp),
+                color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            )
+        }
     }
 
     // Middle: previous, play or pause, next
@@ -260,7 +289,7 @@ private fun BoxScope.Controls(
         horizontalArrangement = Arrangement.spacedBy(if (fullscreen) 40.dp else 24.dp),
     ) {
         if (player.canStep) {
-            RoundButton(Icons.Filled.SkipPrevious, "Previous channel", 42.dp) {
+            RoundButton(Icons.Filled.SkipPrevious, "Previous channel", 44.dp) {
                 onTouch()
                 player.step(-1)
             }
@@ -268,15 +297,13 @@ private fun BoxScope.Controls(
         RoundButton(
             icon = if (player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             label = if (player.isPlaying) "Pause" else "Play",
-            size = if (fullscreen) 68.dp else 52.dp,
-            background = Accent,
-            tint = Color.Black,
+            size = if (fullscreen) 68.dp else 56.dp,
         ) {
             onTouch()
             player.togglePlay()
         }
         if (player.canStep) {
-            RoundButton(Icons.Filled.SkipNext, "Next channel", 42.dp) {
+            RoundButton(Icons.Filled.SkipNext, "Next channel", 44.dp) {
                 onTouch()
                 player.step(1)
             }
@@ -332,7 +359,7 @@ private fun BoxScope.Controls(
                 onTouch()
                 model.requestPip()
             }
-            RoundButton(Icons.Filled.AspectRatio, "Screen size") {
+            RoundButton(Icons.Filled.AspectRatio, "Screen size", highlight = true) {
                 onTouch()
                 onResize()
             }
@@ -352,26 +379,27 @@ private fun BoxScope.Controls(
 private fun RoundButton(
     icon: ImageVector,
     label: String,
-    size: Dp = 34.dp,
-    background: Color = Shade,
-    tint: Color = Color.White,
+    size: Dp = 40.dp,
+    highlight: Boolean = false,
     onClick: () -> Unit,
 ) {
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(percent = 35)).background(background)
+        Modifier.size(size).clip(CircleShape).background(ButtonFill)
+            .border(1.dp, if (highlight) Accent else ButtonEdge, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(size * 0.6f))
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(size * 0.5f))
     }
 }
 
 @Composable
 private fun TextPill(text: String, onClick: () -> Unit) {
     Box(
-        Modifier.height(34.dp).defaultMinSize(minWidth = 44.dp)
-            .clip(RoundedCornerShape(12.dp)).background(Shade)
-            .clickable(onClick = onClick).padding(horizontal = 10.dp),
+        Modifier.height(40.dp).defaultMinSize(minWidth = 46.dp)
+            .clip(RoundedCornerShape(50)).background(ButtonFill)
+            .border(1.dp, ButtonEdge, RoundedCornerShape(50))
+            .clickable(onClick = onClick).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
