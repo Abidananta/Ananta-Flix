@@ -1,5 +1,1 @@
-# Playlist link ekhane din. Protiti line e ekta kore.
-# Format:  Nam | link
-# Line er shurute # thakle seta bad jabe. Niche udaharon (# muche nijer link din):
-#
-# My Channels | https://example.com/my.m3u
+Toffee | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/bdix_tset.m3u
