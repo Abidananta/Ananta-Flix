@@ -1,5 +1,9 @@
 package com.aplay.tv
 
+import org.json.JSONObject
+import android.content.res.Configuration
+import android.content.Context
+import android.app.UiModeManager
 import com.aplay.tv.ui.setAccent
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
@@ -80,6 +84,93 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private var lastLoaded = 0L
 
+    /** True when the app runs on an Android TV. */
+    val isTv: Boolean = (getApplication<Application>().getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)
+        ?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+
+    /** A TV works only after a phone has sent the code shown on it. Phones are always active. */
+    var tvActive by mutableStateOf(!isTv || store.tvActive)
+        private set
+    val tvCode: String = if (isTv) store.tvCode.ifEmpty { TvPairing.newCode().also { store.tvCode = it } } else ""
+    private var tvJob: Job? = null
+
+    /** TV: waits for the phone. When its message arrives the TV is activated. */
+    fun startTvPairing() {
+        if (!isTv || tvActive || tvJob?.isActive == true) return
+        tvJob = viewModelScope.launch {
+            var since = "12h"
+            while (!tvActive) {
+                val received = TvPairing.waitForMessage(tvCode, since)
+                since = received.id.ifEmpty { since }
+                if (applyTvMessage(received.text)) break
+            }
+        }
+    }
+
+    private fun applyTvMessage(text: String): Boolean {
+        return try {
+            val data = JSONObject(text)
+            if (data.optString("app") != "aplay") return false
+            val merged = playlists.toMutableList()
+            val incoming = data.optJSONArray("playlists")
+            for (i in 0 until (incoming?.length() ?: 0)) {
+                val item = incoming?.optJSONObject(i) ?: continue
+                val source = item.optString("source")
+                if (source.isNotBlank() && merged.none { it.source == source }) {
+                    merged += Playlist(UUID.randomUUID().toString(), item.optString("name").ifBlank { "Playlist" }, source)
+                }
+            }
+            playlists = merged
+            store.playlists = merged
+            data.optString("matches").takeIf { it.isNotBlank() }?.let {
+                matchesUrl = it
+                store.matchesUrl = it
+            }
+            if (data.has("accent")) updateAccent(Color(data.getInt("accent")))
+            store.tvActive = true
+            tvActive = true
+            refresh()
+            true
+        } catch (e: org.json.JSONException) {
+            false
+        }
+    }
+
+    /** Phone: sends the playlists and settings to the TV that shows [rawCode]. */
+    fun sendToTv(rawCode: String) {
+        val code = TvPairing.clean(rawCode)
+        if (code.length != TvPairing.CODE_LENGTH) {
+            message = "Type the ${TvPairing.CODE_LENGTH} letters and numbers shown on the TV"
+            return
+        }
+        val list = org.json.JSONArray()
+        playlists.filter { it.enabled && it.source.startsWith("http") }.forEach {
+            list.put(JSONObject().put("name", it.name).put("source", it.source))
+        }
+        val text = JSONObject()
+            .put("app", "aplay")
+            .put("playlists", list)
+            .put("matches", matchesUrl)
+            .put("accent", accent.toArgb())
+            .toString()
+        if (text.toByteArray().size > TvPairing.MAX_MESSAGE) {
+            message = "Too many playlists to send to the TV. Remove some and try again."
+            return
+        }
+        viewModelScope.launch {
+            message = if (TvPairing.send(code, text)) "Sent. Your TV is now active."
+            else "Could not reach the TV service. Check the internet."
+        }
+    }
+
+    /** TV: asks for a new code, so another phone can activate it. */
+    fun deactivateTv() {
+        store.tvActive = false
+        store.tvCode = ""
+        message = "TV deactivated. Restart the app to get a new code."
+        tvActive = false
+    }
+
     var accent by mutableStateOf(Color(store.accent))
         private set
 
@@ -122,6 +213,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var savedOnly = false
 
     private suspend fun reload(silent: Boolean, savedOnly: Boolean) {
+        try {
+            reloadUnsafe(silent, savedOnly)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            // A bad playlist or file must never close the app.
+            loading = false
+            if (!silent) message = "Could not load: ${e.javaClass.simpleName} ${e.message.orEmpty()}".trim()
+        }
+    }
+
+    private suspend fun reloadUnsafe(silent: Boolean, savedOnly: Boolean) {
         this.savedOnly = savedOnly
         if (!silent) loading = true
         val errors = mutableListOf<String>()

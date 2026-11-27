@@ -1,5 +1,7 @@
 package com.aplay.tv.ui
 
+import com.aplay.tv.TvPairing
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.ui.graphics.Color
@@ -50,7 +52,7 @@ import com.aplay.tv.AppViewModel
 import com.aplay.tv.BuildConfig
 import com.aplay.tv.Stream
 
-private enum class Dialog { NONE, STREAM, PLAYLISTS, MATCHES, COLOR }
+private enum class Dialog { NONE, STREAM, PLAYLISTS, MATCHES, COLOR, TV }
 
 @Composable
 fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit) {
@@ -67,6 +69,16 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
                 Box(Modifier.size(22.dp).clip(CircleShape).background(model.accent))
             },
         ) { dialog = Dialog.COLOR }
+        Text("TV", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        if (model.isTv) {
+            SettingRow(Icons.Filled.Tv, "Deactivate TV", "Forget the phone that activated this TV") {
+                model.deactivateTv()
+            }
+        } else {
+            SettingRow(Icons.Filled.Tv, "Activate TV", "Type the code shown on your Android TV") {
+                dialog = Dialog.TV
+            }
+        }
         Text("PLAYBACK", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         SettingRow(Icons.Filled.Link, "Network stream", "Play a link with custom headers") {
             dialog = Dialog.STREAM
@@ -112,6 +124,7 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
         Dialog.PLAYLISTS -> PlaylistManagerDialog(model) { dialog = Dialog.NONE }
         Dialog.MATCHES -> MatchesDialog(model) { dialog = Dialog.NONE }
         Dialog.COLOR -> ColorDialog(model) { dialog = Dialog.NONE }
+        Dialog.TV -> TvCodeDialog(model) { dialog = Dialog.NONE }
     }
 }
 
@@ -270,5 +283,36 @@ private fun ColorDialog(model: AppViewModel, onDismiss: () -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+    )
+}
+
+@Composable
+private fun TvCodeDialog(model: AppViewModel, onDismiss: () -> Unit) {
+    var code by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Activate TV") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Open APlay on your Android TV. It shows a code. Type it here.", fontSize = 13.sp)
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = TvPairing.clean(it).take(TvPairing.CODE_LENGTH) },
+                    label = { Text("TV code") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    model.sendToTv(code)
+                    onDismiss()
+                },
+                enabled = code.length == TvPairing.CODE_LENGTH,
+            ) { Text("Activate") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

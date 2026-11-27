@@ -1,5 +1,9 @@
 package com.aplay.tv
 
+import com.aplay.tv.ui.TvActivateScreen
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -85,6 +89,22 @@ class MainActivity : ComponentActivity() {
     private var inPip by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // If the app ever crashes, the reason is saved and shown the next time it opens.
+        val crashFile = java.io.File(filesDir, "crash.txt")
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            try {
+                crashFile.writeText(android.util.Log.getStackTraceString(error).take(5000))
+            } catch (e: Throwable) {
+                // nothing more can be done
+            }
+            previous?.uncaughtException(thread, error)
+        }
+        val lastCrash = try {
+            crashFile.takeIf { it.exists() }?.readText().also { crashFile.delete() }
+        } catch (e: Throwable) {
+            null
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -95,7 +115,33 @@ class MainActivity : ComponentActivity() {
             // Full screen turns the phone sideways and hides the system bars.
             val fullscreen = model.fullscreen
             LaunchedEffect(fullscreen) { applyScreenMode(fullscreen) }
-            APlayTheme { App(model, inPip) }
+            APlayTheme {
+                if (model.isTv && !model.tvActive) TvActivateScreen(model) else App(model, inPip)
+                var crash by remember { mutableStateOf(lastCrash) }
+                crash?.let { report ->
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { crash = null },
+                        title = { Text("The app closed last time") },
+                        text = {
+                            Text(
+                                report,
+                                fontSize = 10.sp,
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                            )
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("crash", report))
+                                crash = null
+                            }) { Text("Copy") }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = { crash = null }) { Text("Close") }
+                        },
+                    )
+                }
+            }
         }
     }
 

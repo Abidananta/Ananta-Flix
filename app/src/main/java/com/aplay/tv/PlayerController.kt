@@ -24,6 +24,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.drm.LocalMediaDrmCallback
+import androidx.media3.exoplayer.drm.FrameworkMediaDrm
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManager
 
 data class Quality(val height: Int, val group: Tracks.Group, val track: Int, val selected: Boolean)
 
@@ -135,11 +138,18 @@ class PlayerController(private val context: Context, private val store: Store) {
             )
         }
 
+        val mediaSourceFactory = DefaultMediaSourceFactory(context)
+            .setDataSourceFactory(DefaultDataSource.Factory(context, http))
+        val clearKey = clearKeyJson(stream.licenseUrl)
+        if (clearKey != null) {
+            mediaSourceFactory.setDrmSessionManagerProvider {
+                DefaultDrmSessionManager.Builder()
+                    .setUuidAndExoMediaDrmProvider(C.CLEARKEY_UUID, FrameworkMediaDrm.DEFAULT_PROVIDER)
+                    .build(LocalMediaDrmCallback(clearKey.toByteArray()))
+            }
+        }
         val player = ExoPlayer.Builder(context, renderers)
-            .setMediaSourceFactory(
-                DefaultMediaSourceFactory(context)
-                    .setDataSourceFactory(DefaultDataSource.Factory(context, http))
-            )
+            .setMediaSourceFactory(mediaSourceFactory)
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.setAudioAttributes(AudioAttributes.DEFAULT, true)
@@ -154,7 +164,9 @@ class PlayerController(private val context: Context, private val store: Store) {
 
         val item = MediaItem.Builder().setUri(stream.url)
         if (mimeType != null) item.setMimeType(mimeType)
-        if (stream.licenseUrl.isNotEmpty()) {
+        if (clearKey != null) {
+            item.setDrmConfiguration(MediaItem.DrmConfiguration.Builder(C.CLEARKEY_UUID).build())
+        } else if (stream.licenseUrl.isNotEmpty()) {
             item.setDrmConfiguration(
                 MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
                     .setLicenseUri(stream.licenseUrl)
@@ -270,4 +282,28 @@ class PlayerController(private val context: Context, private val store: Store) {
             null
         }
     }
+}
+
+/** The ClearKey licence for "clearkey:<kid>:<key>" (hex), or null for any other licence. */
+private fun clearKeyJson(license: String): String? {
+    val parts = license.split(":")
+    if (parts.size != 3 || parts[0] != "clearkey") return null
+    fun encode(hex: String): String? {
+        val clean = hex.replace("-", "").trim()
+        if (clean.isEmpty() || clean.length % 2 != 0 || !clean.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+            return null
+        }
+        val bytes = ByteArray(clean.length / 2) { clean.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+        return android.util.Base64.encodeToString(
+            bytes,
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP,
+        )
+    }
+    val kid = encode(parts[1]) ?: return null
+    val key = encode(parts[2]) ?: return null
+    val entry = org.json.JSONObject().put("kty", "oct").put("k", key).put("kid", kid)
+    return org.json.JSONObject()
+        .put("keys", org.json.JSONArray().put(entry))
+        .put("type", "temporary")
+        .toString()
 }

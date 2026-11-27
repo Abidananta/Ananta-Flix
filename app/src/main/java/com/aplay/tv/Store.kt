@@ -60,6 +60,15 @@ class Store(context: Context) {
         get() = prefs.getInt("accent", 0xFF22D3EE.toInt())
         set(value) = prefs.edit().putInt("accent", value).apply()
 
+    /** TV only: the code shown on screen, and whether a phone has activated this TV. */
+    var tvCode: String
+        get() = prefs.getString("tvCode", "").orEmpty()
+        set(value) = prefs.edit().putString("tvCode", value).apply()
+
+    var tvActive: Boolean
+        get() = prefs.getBoolean("tvActive", false)
+        set(value) = prefs.edit().putBoolean("tvActive", value).apply()
+
     var matchesUrl: String
         get() = prefs.getString("matchesUrl", "").orEmpty()
         set(value) = prefs.edit().putString("matchesUrl", value).apply()

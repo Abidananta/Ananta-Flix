@@ -183,7 +183,7 @@ fun ServersScreen(
                 s.enabled, s,
             ))
         }
-    }.filter { it.name.contains(query, ignoreCase = true) }
+    }.filter { it.name.contains(query, ignoreCase = true) }.distinctBy { it.key }
 
     androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
         columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),

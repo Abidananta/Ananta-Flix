@@ -53,7 +53,7 @@ fun ChannelsScreen(
     val visible = remember(channels, active, query) {
         channels.filter {
             (active == ALL_CHANNELS || it.group == active) && it.name.contains(query, ignoreCase = true)
-        }
+        }.distinctBy { it.id }
     }
     Column(Modifier.fillMaxSize()) {
         // Categories stay visible under the Now Playing card.
@@ -93,11 +93,11 @@ private fun ChannelGrid(
 ) {
     val compact = playingId != null
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(if (compact) 76.dp else 104.dp),
+        columns = GridCells.Fixed(4),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(channels, key = { it.id }, contentType = { "channel" }) { channel ->
             val favorite = channel.id in favorites
@@ -108,17 +108,16 @@ private fun ChannelGrid(
             ) {
                 Box {
                     Column(
-                        Modifier.fillMaxWidth().padding(8.dp),
+                        Modifier.fillMaxWidth().padding(6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Logo(channel.logo, channel.name, Modifier.fillMaxWidth().aspectRatio(1f))
                         Text(
                             text = channel.name,
                             modifier = Modifier.padding(top = 8.dp),
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             textAlign = TextAlign.Center,
-                            minLines = 2,
-                            maxLines = 2,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }

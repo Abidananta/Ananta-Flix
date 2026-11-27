@@ -40,3 +40,8 @@ tokhon notun APK build korte hobe.
 * `matches.txt` e `Nam | link` likhun (matches.json er link).
 * Ba `.json` file ei folder e rakhun.
 * Shob source er match ekshathe dekhay. App e More > Matches source e-o link dewa jay.
+
+## Android TV
+Ei APK Android TV te-o install kora jay. TV te prothom bar khulle ekta code dekhay.
+Phone e APlay te More > Activate TV te oi code likhle TV active hoy, ar phone er playlist
+link, matches link ar app color TV te chole jay. (Online service: ntfy.sh, account lage na.)
