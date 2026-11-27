@@ -1,5 +1,12 @@
 package com.aplay.tv
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import android.os.Build
 import com.aplay.tv.ui.AplayLogo
@@ -371,27 +378,7 @@ private fun App(model: AppViewModel, inPip: Boolean) {
             )
         },
         bottomBar = {
-            if (!videoOnly) NavigationBar(containerColor = androidx.compose.ui.graphics.Color(0x24FFFFFF)) {
-                Tab.entries.forEach { item ->
-                    NavigationBarItem(
-                        selected = item == tab,
-                        onClick = { tabIndex = item.ordinal },
-                        icon = {
-                            Icon(
-                                when (item) {
-                                    Tab.MATCHES -> Icons.Filled.SportsSoccer
-                                    Tab.CHANNELS -> Icons.Filled.LiveTv
-                                    Tab.SERVERS -> Icons.Filled.Dns
-                                    Tab.FAVORITES -> Icons.Filled.Favorite
-                                    Tab.MORE -> Icons.Filled.Settings
-                                },
-                                contentDescription = item.label,
-                            )
-                        },
-                        label = { Text(item.label, maxLines = 1, softWrap = false) },
-                    )
-                }
-            }
+            if (!videoOnly) AplayNavBar(tab) { tabIndex = it.ordinal }
         },
     ) { padding ->
         BoxWithConstraints(
@@ -472,6 +459,82 @@ private fun App(model: AppViewModel, inPip: Boolean) {
                     }
                 }
             }
+            }
+        }
+    }
+}
+
+private fun tabIcon(tab: Tab): ImageVector = when (tab) {
+    Tab.MATCHES -> Icons.Filled.SportsSoccer
+    Tab.CHANNELS -> Icons.Filled.LiveTv
+    Tab.SERVERS -> Icons.Filled.Dns
+    Tab.FAVORITES -> Icons.Filled.Favorite
+    Tab.MORE -> Icons.Filled.Settings
+}
+
+/** A floating, rounded bar. The chosen tab sits in a glowing pill in the app colour. */
+@Composable
+private fun AplayNavBar(selected: Tab, onSelect: (Tab) -> Unit) {
+    val shape = RoundedCornerShape(26.dp)
+    val idle = androidx.compose.ui.graphics.Color(0xFF9AA5BD)
+    Box(Modifier.navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Row(
+            Modifier.fillMaxWidth().clip(shape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            androidx.compose.ui.graphics.Color(0xF2171E31),
+                            androidx.compose.ui.graphics.Color(0xF20D1220),
+                        )
+                    )
+                )
+                .border(1.dp, androidx.compose.ui.graphics.Color(0xFF2A3350), shape)
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+        ) {
+            Tab.entries.forEach { item ->
+                val active = item == selected
+                Column(
+                    Modifier.weight(1f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onSelect(item) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier.width(66.dp).height(36.dp).clip(RoundedCornerShape(18.dp))
+                            .then(
+                                if (active) Modifier
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Accent.copy(alpha = 0.45f),
+                                                androidx.compose.ui.graphics.Color(0xFF2B2F6E).copy(alpha = 0.6f),
+                                            )
+                                        )
+                                    )
+                                    .border(1.dp, Accent, RoundedCornerShape(18.dp))
+                                else Modifier
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            tabIcon(item),
+                            contentDescription = item.label,
+                            tint = if (active) androidx.compose.ui.graphics.Color.White else idle,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Text(
+                        item.label.uppercase(),
+                        Modifier.padding(top = 4.dp),
+                        color = if (active) androidx.compose.ui.graphics.Color.White else idle,
+                        fontSize = 10.sp,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
         }
     }

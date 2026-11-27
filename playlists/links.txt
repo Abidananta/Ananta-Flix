@@ -1,9 +1,5 @@
-Toffee   | https://raw.githubusercontent.com/sm-monirulislam/Toffee-Auto-Update/refs/heads/main/toffee_playlist.m3u
-Mixed    | https://raw.githubusercontent.com/sarsx3/aladin430/refs/heads/main/playlists/eamin-tv.m3u
-Mixed  2 | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/new_isp.m3u
-Mixed  3 | https://raw.githubusercontent.com/Tapas-Creation/M3U-Live/refs/heads/main/Skym3u.dev/7B.m3u
-Mixed  4 | https://raw.githubusercontent.com/iptv-org/iptv/refs/heads/master/streams/in.m3u
-Jagobd | https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd_main.m3u
-Sony Liv | https://raw.githubusercontent.com/sm-monirulislam/SonyLiv_Event_Playlist/refs/heads/main/sonyLiv.m3u
-Tap Mad  | https://raw.githubusercontent.com/sm-monirulislam/Tapmad_Auto_Update_Playlist/refs/heads/main/tapmad_sm.m3u
-Fand Code  |https://raw.githubusercontent.com/sm-monirulislam/Fancode_Auto_Update_Playlist/refs/heads/main/fancode_bd.m3u
+# Playlist link ekhane din. Protiti line e ekta kore.
+# Format:  Nam | link
+# Line er shurute # thakle seta bad jabe. Niche udaharon (# muche nijer link din):
+#
+# My Channels | https://example.com/my.m3u
