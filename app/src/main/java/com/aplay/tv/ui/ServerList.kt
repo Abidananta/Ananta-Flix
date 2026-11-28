@@ -1,6 +1,16 @@
 package com.aplay.tv.ui
 
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.filled.SportsCricket
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.ChildCare
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.SatelliteAlt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.background
@@ -233,20 +243,20 @@ fun serverIcon(name: String): Pair<androidx.compose.ui.graphics.vector.ImageVect
     val n = name.lowercase()
     fun has(vararg words: String) = words.any { n.contains(it) }
     return when {
-        has("cricket", "ipl", "t20", "psl", "bpl") -> androidx.compose.material.icons.Icons.Filled.SportsCricket to Color(0xFF16A34A)
+        has("cricket", "ipl", "t20", "psl", "bpl") -> Icons.Filled.SportsCricket to Color(0xFF16A34A)
         has("football", "soccer", "fifa", "epl", "league", "laliga", "bundesliga") ->
-            androidx.compose.material.icons.Icons.Filled.SportsSoccer to Color(0xFF22C55E)
+            Icons.Filled.SportsSoccer to Color(0xFF22C55E)
         has("sport", "match", "bein", "espn", "t sports", "gazi", "ten ", "star sports") ->
-            androidx.compose.material.icons.Icons.Filled.EmojiEvents to Color(0xFFF59E0B)
+            Icons.Filled.EmojiEvents to Color(0xFFF59E0B)
         has("movie", "film", "cinema", "hbo", "bollywood", "hollywood", "vod") ->
-            androidx.compose.material.icons.Icons.Filled.Movie to Color(0xFFEF4444)
-        has("news") -> androidx.compose.material.icons.Icons.Filled.Campaign to Color(0xFF3B82F6)
-        has("kid", "cartoon", "anime", "child") -> androidx.compose.material.icons.Icons.Filled.ChildCare to Color(0xFFEC4899)
-        has("music", "song", "radio", "fm") -> androidx.compose.material.icons.Icons.Filled.MusicNote to Color(0xFFA855F7)
-        has("doc", "discovery", "nature", "geo") -> androidx.compose.material.icons.Icons.Filled.Explore to Color(0xFF14B8A6)
-        has("islam", "quran", "deen") -> androidx.compose.material.icons.Icons.Filled.Language to Color(0xFF059669)
+            Icons.Filled.Movie to Color(0xFFEF4444)
+        has("news") -> Icons.Filled.Campaign to Color(0xFF3B82F6)
+        has("kid", "cartoon", "anime", "child") -> Icons.Filled.ChildCare to Color(0xFFEC4899)
+        has("music", "song", "radio", "fm") -> Icons.Filled.MusicNote to Color(0xFFA855F7)
+        has("doc", "discovery", "nature", "geo") -> Icons.Filled.Explore to Color(0xFF14B8A6)
+        has("islam", "quran", "deen") -> Icons.Filled.Language to Color(0xFF059669)
         has("series", "drama", "serial", "show", "dish", "tv", "bangla", "bd", "india", "hindi") ->
-            androidx.compose.material.icons.Icons.Filled.SatelliteAlt to Color(0xFF6366F1)
-        else -> androidx.compose.material.icons.Icons.Filled.SatelliteAlt to Color(0xFF0EA5E9)
+            Icons.Filled.SatelliteAlt to Color(0xFF6366F1)
+        else -> Icons.Filled.SatelliteAlt to Color(0xFF0EA5E9)
     }
 }
