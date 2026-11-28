@@ -491,7 +491,7 @@ private fun tabIcon(tab: Tab): ImageVector = when (tab) {
 private fun AplayNavBar(selected: Tab, onSelect: (Tab) -> Unit) {
     val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val idle = androidx.compose.ui.graphics.Color(0xFF9AA5BD)
-    Box(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFF0B0F1A))) {
+    Box(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().clip(shape)
                 .background(

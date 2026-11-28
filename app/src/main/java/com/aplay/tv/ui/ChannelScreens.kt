@@ -125,7 +125,7 @@ private fun ChannelGrid(
     onPlay: (Channel, List<Channel>) -> Unit,
     playingId: String?,
 ) {
-    val compact = playingId != null
+    val compact = false
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
     // While a channel plays, exactly three rows of channels fit under the video.
     val cellHeight = ((maxHeight - 8.dp * 2 - 6.dp * 2) / 3).coerceAtLeast(64.dp)
@@ -141,8 +141,9 @@ private fun ChannelGrid(
             Card(
                 modifier = Modifier.clickable { onPlay(channel, channels) }
                     .then(if (compact) Modifier.height(cellHeight) else Modifier),
-                border = if (channel.id == playingId) BorderStroke(2.dp, Accent) else BorderStroke(1.dp, GlassStroke),
-                colors = CardDefaults.cardColors(containerColor = GlassFill),
+                border = if (channel.id == playingId) BorderStroke(2.dp, Accent) else BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFF232B40)),
+                colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF111726)),
+                shape = RoundedCornerShape(18.dp),
             ) {
                 Box {
                     Column(

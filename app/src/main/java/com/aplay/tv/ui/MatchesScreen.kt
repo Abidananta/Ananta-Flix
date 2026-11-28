@@ -21,6 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +56,10 @@ import java.util.Locale
 
 private const val ALL_LEAGUES = "All"
 private val Muted = Color(0xFF9AA5BD)
+private val CardBg = Color(0xFF0F1524)
+private val CardLine = Color(0xFF263048)
+private val DarkChip = Color(0xFF151C2E)
+private val Bar = Color(0xFF0B1020)
 
 @Composable
 fun MatchesScreen(matches: List<Match>, onPlay: (String, List<Stream>, Int) -> Unit) {
@@ -102,10 +111,10 @@ fun MatchesScreen(matches: List<Match>, onPlay: (String, List<Stream>, Int) -> U
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { CountChip("All (${inLeague.size})", filter == "All") { filter = "All" } }
-            item { CountChip("Live now ($liveCount)", filter == "Live") { filter = "Live" } }
-            item { CountChip("Today's ($todayCount)", filter == "Today") { filter = "Today" } }
-            item { CountChip("Upcoming ($upcomingCount)", filter == "Upcoming") { filter = "Upcoming" } }
+            item { CountChip(Icons.Filled.Check, "All (${inLeague.size})", filter == "All") { filter = "All" } }
+            item { CountChip(Icons.Filled.Sensors, "Live now ($liveCount)", filter == "Live") { filter = "Live" } }
+            item { CountChip(Icons.Filled.CalendarToday, "Today's ($todayCount)", filter == "Today") { filter = "Today" } }
+            item { CountChip(Icons.Filled.Event, "Upcoming ($upcomingCount)", filter == "Upcoming") { filter = "Upcoming" } }
         }
         if (visible.isEmpty()) {
             EmptyMessage("No matches here right now.")
@@ -157,46 +166,38 @@ private fun title(match: Match) = "${match.home.name} vs ${match.away.name}"
 
 @Composable
 private fun LeagueTile(name: String, logo: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
-    Column(
-        Modifier.width(72.dp).clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        Modifier.size(72.dp).clip(shape)
+            .background(if (selected) Color(0xFF16233A) else DarkChip)
+            .border(if (selected) 2.dp else 1.dp, if (selected) Accent else CardLine, shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.size(60.dp).clip(shape)
-                .background(if (selected) Accent.copy(alpha = 0.16f) else GlassFill)
-                .border(if (selected) 2.dp else 1.dp, if (selected) Accent else GlassStroke, shape),
+            Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(Color.White),
             contentAlignment = Alignment.Center,
         ) {
-            if (name == ALL_LEAGUES) {
-                AplayMark(Modifier.size(32.dp))
-            } else {
-                Logo(logo, name, Modifier.size(40.dp))
-            }
+            if (name == ALL_LEAGUES) AplayMark(Modifier.size(40.dp)) else Logo(logo, name, Modifier.fillMaxSize())
         }
-        Text(
-            name, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            color = if (selected) Accent else Muted,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 
 @Composable
-private fun CountChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun CountChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
-    Text(
-        text,
-        color = if (selected) Color.White else Muted,
-        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-        fontSize = 13.sp,
-        modifier = Modifier.clip(shape)
-            .background(if (selected) Accent.copy(alpha = 0.30f) else GlassFill)
-            .border(1.dp, if (selected) Accent else GlassStroke, shape)
+    Row(
+        Modifier.clip(shape)
+            .background(if (selected) Color(0xFF12304A) else DarkChip)
+            .border(1.dp, if (selected) Accent else CardLine, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    )
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        androidx.compose.material3.Icon(icon, null, tint = if (selected) Accent else Muted, modifier = Modifier.size(16.dp))
+        Text(text, color = if (selected) Color.White else Muted, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+    }
 }
 
 @Composable
@@ -205,33 +206,33 @@ private fun MatchCard(match: Match, now: Long, onClick: () -> Unit) {
     val start = Date(match.startMillis)
     val shape = RoundedCornerShape(20.dp)
     Column(
-        Modifier.fillMaxWidth().clip(shape).background(GlassFill)
-            .border(1.dp, GlassStroke, shape)
+        Modifier.fillMaxWidth().clip(shape).background(CardBg)
+            .border(1.dp, CardLine, shape)
             .clickable(onClick = onClick),
     ) {
         // Header
         Row(
-            Modifier.fillMaxWidth().background(Color(0x22000000)).padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (match.leagueLogo.isNotBlank()) Logo(match.leagueLogo, match.league, Modifier.size(18.dp))
+            Logo(match.leagueLogo, match.league, Modifier.size(20.dp))
             Text(
                 "${match.league.uppercase()} • ${match.home.name.uppercase()} VS ${match.away.name.uppercase()}",
                 fontSize = 11.sp, color = Muted, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             // Left: date & time
             Column(Modifier.width(92.dp)) {
                 Text(
                     SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(start),
-                    fontSize = 12.sp, color = Muted,
+                    fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold,
                 )
                 Text(
                     SimpleDateFormat("hh:mm a", Locale.getDefault()).format(start),
-                    fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Accent,
+                    fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Accent,
                 )
             }
             // Teams
@@ -239,9 +240,9 @@ private fun MatchCard(match: Match, now: Long, onClick: () -> Unit) {
                 TeamLine(match.home)
                 TeamLine(match.away)
             }
-            Box(Modifier.padding(horizontal = 12.dp).width(1.dp).height(52.dp).background(GlassStroke))
+            Box(Modifier.padding(horizontal = 14.dp).width(1.dp).height(56.dp).background(CardLine))
             // Status
-            Column(Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.width(70.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = when (status) {
                         MatchStatus.LIVE -> "● LIVE"
@@ -258,22 +259,30 @@ private fun MatchCard(match: Match, now: Long, onClick: () -> Unit) {
             }
         }
         // Footer: server chips
+        Box(Modifier.padding(horizontal = 14.dp).fillMaxWidth().height(1.dp).background(CardLine))
         Row(
-            Modifier.fillMaxWidth().background(Color(0x22000000)).padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             match.servers.take(3).forEach { s ->
+                Box(
+                    Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(DarkChip)
+                        .border(1.dp, CardLine, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center,
+                ) { Text(s.name.trim().take(1).uppercase(), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.Bold) }
+            }
+            if (match.servers.size > 3) {
                 Text(
-                    s.name, fontSize = 10.sp, color = Color.White, maxLines = 1,
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Accent.copy(alpha = 0.25f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    "+${match.servers.size - 3}", fontSize = 10.sp, color = Accent, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF12304A))
+                        .padding(horizontal = 7.dp, vertical = 4.dp),
                 )
             }
             Spacer(Modifier.weight(1f))
             Text(
                 "${match.servers.size} ${if (match.servers.size == 1) "SERVER" else "SERVERS"}",
-                fontSize = 11.sp, color = Muted, fontWeight = FontWeight.Bold,
+                fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -282,7 +291,7 @@ private fun MatchCard(match: Match, now: Long, onClick: () -> Unit) {
 @Composable
 private fun TeamLine(team: Team) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Logo(team.logo, team.name, Modifier.size(28.dp))
+        Logo(team.logo, team.name, Modifier.size(26.dp))
         Text(team.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
