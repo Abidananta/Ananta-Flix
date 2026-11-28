@@ -4,10 +4,35 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- antennas -->
     <path
-        android:fillColor="#FFB020"
-        android:pathData="M54,26a28,28 0,1 1,-0.1 0z" />
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.4"
+        android:strokeLineCap="round"
+        android:pathData="M54,36L42,23M54,36L66,23" />
+    <path android:fillColor="#FFFFD54A" android:pathData="M42,20.5m-3.2,0a3.2,3.2 0,1 1,6.4 0a3.2,3.2 0,1 1,-6.4 0" />
+    <path android:fillColor="#FFFFD54A" android:pathData="M66,20.5m-3.2,0a3.2,3.2 0,1 1,6.4 0a3.2,3.2 0,1 1,-6.4 0" />
+    <!-- body -->
     <path
-        android:fillColor="#121110"
-        android:pathData="M46,40L70,54L46,68z" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,34h36a10,10 0,0 1,10 10v26a10,10 0,0 1,-10 10h-36a10,10 0,0 1,-10,-10v-26a10,10 0,0 1,10 -10z" />
+    <!-- screen -->
+    <path
+        android:fillColor="#FF14172E"
+        android:pathData="M37,40h34a7,7 0,0 1,7 7v20a7,7 0,0 1,-7 7h-34a7,7 0,0 1,-7,-7v-20a7,7 0,0 1,7 -7z" />
+    <!-- letter A -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M36,67L43.5,47L51,67M39,61h9" />
+    <!-- play -->
+    <path android:fillColor="#FF22D3EE" android:pathData="M57,48L57,66L71,57z" />
+    <!-- feet -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.4"
+        android:strokeLineCap="round"
+        android:pathData="M40,84L38,88M68,84L70,88" />
 </vector>

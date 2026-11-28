@@ -167,18 +167,12 @@ fun PlayerPane(model: AppViewModel, inPip: Boolean, modifier: Modifier = Modifie
             }
 
             player.error?.let { message ->
-                Column(
-                    Modifier.align(Alignment.Center).background(Shade).padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(message, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { player.reload() }) { Text("Try again") }
-                        TextButton(
-                            onClick = { if (fullscreen) model.fullscreen = false else model.closePlayer() },
-                        ) { Text("Back") }
-                    }
-                }
+                TvStaticError(
+                    message = message,
+                    onRetry = { player.reload() },
+                    onBack = { if (fullscreen) model.fullscreen = false else model.closePlayer() },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             if (fullscreen && channelList) {

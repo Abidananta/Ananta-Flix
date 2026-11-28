@@ -1,6 +1,7 @@
 package com.aplay.tv.ui
 
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -201,14 +202,16 @@ private fun ServerTile(
             .padding(horizontal = 8.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Every server uses the APlay logo as its picture.
+        // The picture follows the server's name: sports -> trophy, movies -> film, series -> dish...
+        val (icon, tint) = serverIcon(name)
         Box(
-            Modifier.size(70.dp).clip(RoundedCornerShape(16.dp))
-                .background(GlassFill)
-                .border(1.dp, GlassStroke, RoundedCornerShape(16.dp)),
+            Modifier.size(70.dp).clip(RoundedCornerShape(18.dp))
+                .background(Brush.linearGradient(listOf(tint, tint.copy(alpha = 0.55f))))
+                .alpha(if (dimmed) 0.4f else 1f)
+                .border(1.dp, GlassStroke, RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            AplayMark(Modifier.size(52.dp).alpha(if (dimmed) 0.4f else 1f))
+            androidx.compose.material3.Icon(icon, null, tint = Color.White, modifier = Modifier.size(38.dp))
         }
         Text(
             name,
@@ -222,5 +225,28 @@ private fun ServerTile(
             color = if (dimmed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
         )
         Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+    }
+}
+
+/** Picks a picture and colour for a server from words in its name. */
+fun serverIcon(name: String): Pair<androidx.compose.ui.graphics.vector.ImageVector, Color> {
+    val n = name.lowercase()
+    fun has(vararg words: String) = words.any { n.contains(it) }
+    return when {
+        has("cricket", "ipl", "t20", "psl", "bpl") -> androidx.compose.material.icons.Icons.Filled.SportsCricket to Color(0xFF16A34A)
+        has("football", "soccer", "fifa", "epl", "league", "laliga", "bundesliga") ->
+            androidx.compose.material.icons.Icons.Filled.SportsSoccer to Color(0xFF22C55E)
+        has("sport", "match", "bein", "espn", "t sports", "gazi", "ten ", "star sports") ->
+            androidx.compose.material.icons.Icons.Filled.EmojiEvents to Color(0xFFF59E0B)
+        has("movie", "film", "cinema", "hbo", "bollywood", "hollywood", "vod") ->
+            androidx.compose.material.icons.Icons.Filled.Movie to Color(0xFFEF4444)
+        has("news") -> androidx.compose.material.icons.Icons.Filled.Campaign to Color(0xFF3B82F6)
+        has("kid", "cartoon", "anime", "child") -> androidx.compose.material.icons.Icons.Filled.ChildCare to Color(0xFFEC4899)
+        has("music", "song", "radio", "fm") -> androidx.compose.material.icons.Icons.Filled.MusicNote to Color(0xFFA855F7)
+        has("doc", "discovery", "nature", "geo") -> androidx.compose.material.icons.Icons.Filled.Explore to Color(0xFF14B8A6)
+        has("islam", "quran", "deen") -> androidx.compose.material.icons.Icons.Filled.Language to Color(0xFF059669)
+        has("series", "drama", "serial", "show", "dish", "tv", "bangla", "bd", "india", "hindi") ->
+            androidx.compose.material.icons.Icons.Filled.SatelliteAlt to Color(0xFF6366F1)
+        else -> androidx.compose.material.icons.Icons.Filled.SatelliteAlt to Color(0xFF0EA5E9)
     }
 }

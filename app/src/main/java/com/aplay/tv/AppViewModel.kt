@@ -722,6 +722,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         store.dataSaver = value
     }
 
+    var autoPlay by mutableStateOf(store.autoPlay)
+    var autoPlayDone = false
+
+    fun updateAutoPlay(value: Boolean) {
+        autoPlay = value
+        store.autoPlay = value
+    }
+
+    fun rememberChannel(id: String) {
+        store.lastChannel = id
+    }
+
+    fun lastChannelId(): String = store.lastChannel
+
     fun updateSoftwareDecoder(value: Boolean) {
         softwareDecoder = value
         store.softwareDecoder = value

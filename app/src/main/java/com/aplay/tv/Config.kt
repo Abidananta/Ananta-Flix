@@ -19,4 +19,12 @@ object Config {
 
     /** Your Telegram link. The "Join Telegram" button stays hidden while this is empty. */
     const val TELEGRAM_URL = ""
+
+    /** Social links shown on the More page. Leave blank to show "Link not added yet". */
+    const val FACEBOOK_URL = ""
+    const val TWITTER_URL = ""
+    const val INSTAGRAM_URL = ""
+
+    /** A web link or an e-mail address for "Contact & Feedback". */
+    const val CONTACT_URL = ""
 }

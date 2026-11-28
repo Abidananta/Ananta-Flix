@@ -305,7 +305,21 @@ private fun App(model: AppViewModel, inPip: Boolean) {
     val mini = playing != null && !videoOnly && tab == Tab.MORE
 
     val play: (String, List<Stream>, Int) -> Unit = model.player::open
-    val playChannel: (Channel, List<Channel>) -> Unit = model.player::openChannel
+    val playChannel: (Channel, List<Channel>) -> Unit = { c, list ->
+        model.rememberChannel(c.id)
+        model.player.openChannel(c, list)
+    }
+    LaunchedEffect(model.channels.size, model.autoPlay) {
+        if (model.autoPlay && !model.autoPlayDone && model.channels.isNotEmpty()) {
+            model.autoPlayDone = true
+            val last = model.lastChannelId()
+            val target = model.channels.firstOrNull { it.id == last }
+            if (target != null) {
+                val list = model.channels.filter { it.source == target.source }.ifEmpty { listOf(target) }
+                model.player.openChannel(target, list)
+            }
+        }
+    }
 
     LaunchedEffect(model.message) {
         model.message?.let {
@@ -475,9 +489,9 @@ private fun tabIcon(tab: Tab): ImageVector = when (tab) {
 /** A floating, rounded bar. The chosen tab sits in a glowing pill in the app colour. */
 @Composable
 private fun AplayNavBar(selected: Tab, onSelect: (Tab) -> Unit) {
-    val shape = RoundedCornerShape(26.dp)
+    val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val idle = androidx.compose.ui.graphics.Color(0xFF9AA5BD)
-    Box(Modifier.navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
+    Box(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFF0B0F1A))) {
         Row(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
@@ -489,7 +503,8 @@ private fun AplayNavBar(selected: Tab, onSelect: (Tab) -> Unit) {
                     )
                 )
                 .border(1.dp, androidx.compose.ui.graphics.Color(0xFF2A3350), shape)
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .navigationBarsPadding()
+                .padding(start = 4.dp, end = 4.dp, top = 10.dp, bottom = 8.dp),
         ) {
             Tab.entries.forEach { item ->
                 val active = item == selected

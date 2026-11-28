@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -125,29 +126,36 @@ private fun ChannelGrid(
     playingId: String?,
 ) {
     val compact = playingId != null
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    // While a channel plays, exactly three rows of channels fit under the video.
+    val cellHeight = ((maxHeight - 8.dp * 2 - 6.dp * 2) / 3).coerceAtLeast(64.dp)
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
+        contentPadding = PaddingValues(if (compact) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(channels, key = { it.id }, contentType = { "channel" }) { channel ->
             val favorite = channel.id in favorites
             Card(
-                modifier = Modifier.clickable { onPlay(channel, channels) },
+                modifier = Modifier.clickable { onPlay(channel, channels) }
+                    .then(if (compact) Modifier.height(cellHeight) else Modifier),
                 border = if (channel.id == playingId) BorderStroke(2.dp, Accent) else BorderStroke(1.dp, GlassStroke),
                 colors = CardDefaults.cardColors(containerColor = GlassFill),
             ) {
                 Box {
                     Column(
-                        Modifier.fillMaxWidth().padding(6.dp),
+                        (if (compact) Modifier.fillMaxSize() else Modifier.fillMaxWidth()).padding(6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Logo(channel.logo, channel.name, Modifier.fillMaxWidth().aspectRatio(1f))
+                        Logo(
+                            channel.logo, channel.name,
+                            if (compact) Modifier.weight(1f).aspectRatio(1f) else Modifier.fillMaxWidth().aspectRatio(1f),
+                        )
                         Text(
                             text = channel.name,
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.padding(top = if (compact) 4.dp else 8.dp),
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
@@ -168,6 +176,7 @@ private fun ChannelGrid(
                 }
             }
         }
+    }
     }
 }
 

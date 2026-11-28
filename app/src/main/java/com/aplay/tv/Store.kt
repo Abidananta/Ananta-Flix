@@ -84,4 +84,12 @@ class Store(context: Context) {
     var softwareDecoder: Boolean
         get() = prefs.getBoolean("softwareDecoder", false)
         set(value) = prefs.edit().putBoolean("softwareDecoder", value).apply()
+
+    var autoPlay: Boolean
+        get() = prefs.getBoolean("autoPlay", false)
+        set(value) = prefs.edit().putBoolean("autoPlay", value).apply()
+
+    var lastChannel: String
+        get() = prefs.getString("lastChannel", "").orEmpty()
+        set(value) = prefs.edit().putString("lastChannel", value).apply()
 }

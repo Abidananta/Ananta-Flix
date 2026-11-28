@@ -4,6 +4,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.heightIn
 import com.aplay.tv.TvPairing
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.ui.graphics.Color
@@ -56,61 +64,133 @@ import com.aplay.tv.Stream
 
 private enum class Dialog { NONE, STREAM, PLAYLISTS, MATCHES, COLOR, TV }
 
+private val BlueTile = Color(0xFF3B82F6)
+private val GreenTile = Color(0xFF22C55E)
+private val PurpleTile = Color(0xFFA855F7)
+private val OrangeTile = Color(0xFFF59E0B)
+private val RedTile = Color(0xFFEF4444)
+private val TealTile = Color(0xFF14B8A6)
+private val PinkTile = Color(0xFFEC4899)
+
+private fun openLink(context: android.content.Context, url: String) {
+    if (url.isBlank()) {
+        android.widget.Toast.makeText(context, "Link not added yet", android.widget.Toast.LENGTH_SHORT).show()
+        return
+    }
+    try {
+        val target = if (url.contains("@") && !url.startsWith("http")) "mailto:$url" else url
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(target))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (_: Exception) {
+        android.widget.Toast.makeText(context, "Cannot open link", android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
+
 @Composable
 fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit) {
     var dialog by rememberSaveable { mutableStateOf(Dialog.NONE) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("APPEARANCE", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        SettingRow(
-            Icons.Filled.Palette, "App color", "Pick the color of buttons, lines and highlights",
-            trailing = {
-                Box(Modifier.size(22.dp).clip(CircleShape).background(model.accent))
-            },
-        ) { dialog = Dialog.COLOR }
-        Text("TV", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        // App card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = GlassFill),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GlassStroke),
+        ) {
+            Row(
+                Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                AplayMark(Modifier.size(56.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("APlay", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                        Text(
+                            "STABLE", color = Accent, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Accent.copy(alpha = 0.18f))
+                                .border(1.dp, Accent.copy(alpha = 0.6f), RoundedCornerShape(50))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
+                    }
+                    Text("Version ${BuildConfig.VERSION_NAME}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Filled.Check, null, tint = GreenTile, modifier = Modifier.size(14.dp))
+                        Text("Up to date", fontSize = 12.sp, color = GreenTile, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        // Social tiles
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SocialTile(Modifier.weight(1f), "Telegram", Color(0xFF29A9EB), { Icon(Icons.AutoMirrored.Filled.Send, null, tint = Color.White) }) {
+                openLink(context, com.aplay.tv.Config.TELEGRAM_URL)
+            }
+            SocialTile(Modifier.weight(1f), "Facebook", Color(0xFF1877F2), { Text("f", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp) }) {
+                openLink(context, com.aplay.tv.Config.FACEBOOK_URL)
+            }
+            SocialTile(Modifier.weight(1f), "Twitter", Color(0xFF111111), { Text("X", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp) }) {
+                openLink(context, com.aplay.tv.Config.TWITTER_URL)
+            }
+            SocialTile(Modifier.weight(1f), "Instagram", Color(0xFFD62976), { Icon(Icons.Filled.CameraAlt, null, tint = Color.White) }) {
+                openLink(context, com.aplay.tv.Config.INSTAGRAM_URL)
+            }
+        }
+
+        SectionHeader("PLAYBACK & STREAMING")
+        SettingRow(Icons.Filled.Link, BlueTile, "Network Stream", "Play a link with custom headers",
+            trailing = { Chevron() }) { dialog = Dialog.STREAM }
+        SettingRow(Icons.AutoMirrored.Filled.PlaylistAdd, GreenTile, "Custom Playlists", "Manage your M3U playlists & files",
+            trailing = { Chevron() }) { dialog = Dialog.PLAYLISTS }
+        SettingRow(Icons.Filled.PictureInPictureAlt, PurpleTile, "Floating Player (PiP)", "Keep playing in a small window",
+            trailing = { OnOffBadge(model.pictureInPicture) }) { model.updatePictureInPicture(!model.pictureInPicture) }
+        SettingRow(Icons.Filled.DataSaverOn, OrangeTile, "Data Saver Mode", "Lowest quality on mobile data",
+            trailing = { Switch(checked = model.dataSaver, onCheckedChange = model::updateDataSaver) }) {
+            model.updateDataSaver(!model.dataSaver)
+        }
+        SettingRow(Icons.Filled.Memory, RedTile, "Player Decoder", "Try software if video is black or broken",
+            trailing = { Pill(if (model.softwareDecoder) "SOFTWARE" else "DEFAULT") }) {
+            model.updateSoftwareDecoder(!model.softwareDecoder)
+        }
+        SettingRow(Icons.Filled.Scoreboard, PinkTile, "Match Schedule", "The schedule from your JSON links",
+            trailing = { Chevron() }) { dialog = Dialog.MATCHES }
+
+        SectionHeader("INTERFACE & STARTUP")
+        SettingRow(Icons.Filled.Palette, BlueTile, "App Color", "Buttons, lines and highlights",
+            trailing = { Box(Modifier.size(22.dp).clip(CircleShape).background(model.accent)) }) {
+            dialog = Dialog.COLOR
+        }
+        SettingRow(Icons.Filled.PlayCircle, TealTile, "Auto-Play on Launch", "Resume your last channel when the app opens",
+            trailing = { Switch(checked = model.autoPlay, onCheckedChange = model::updateAutoPlay) }) {
+            model.updateAutoPlay(!model.autoPlay)
+        }
         if (model.isTv) {
-            SettingRow(Icons.Filled.Tv, "Deactivate TV", "Forget the phone that activated this TV") {
-                model.deactivateTv()
-            }
+            SettingRow(Icons.Filled.Tv, RedTile, "Deactivate TV", "Forget the phone that activated this TV",
+                trailing = { Chevron() }) { model.deactivateTv() }
         } else {
-            SettingRow(Icons.Filled.Tv, "Activate TV", "Type the code shown on your Android TV") {
-                dialog = Dialog.TV
-            }
+            SettingRow(Icons.Filled.Tv, PurpleTile, "Activate TV", "Type the code shown on your Android TV",
+                trailing = { Chevron() }) { dialog = Dialog.TV }
         }
-        Text("PLAYBACK", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        SettingRow(Icons.Filled.Link, "Network stream", "Play a link with custom headers") {
-            dialog = Dialog.STREAM
-        }
-        SettingRow(Icons.AutoMirrored.Filled.PlaylistAdd, "My playlists", "Add M3U links or files") {
-            dialog = Dialog.PLAYLISTS
-        }
-        SettingRow(Icons.Filled.Scoreboard, "Match schedule", "The schedule from your JSON links") {
-            dialog = Dialog.MATCHES
-        }
-        SwitchRow(
-            Icons.Filled.PictureInPictureAlt, "Floating player",
-            "Keep playing in a small window when you leave",
-            model.pictureInPicture, model::updatePictureInPicture,
-        )
-        SwitchRow(
-            Icons.Filled.DataSaverOn, "Data saver",
-            "Lowest quality on mobile data",
-            model.dataSaver, model::updateDataSaver,
-        )
-        SwitchRow(
-            Icons.Filled.Memory, "Software decoder",
-            "Try this if video is black or broken",
-            model.softwareDecoder, model::updateSoftwareDecoder,
-        )
+
+        SectionHeader("COMMUNITY & SUPPORT")
+        SettingRow(Icons.AutoMirrored.Filled.Send, Color(0xFF29A9EB), "Join Telegram Channel", "Get updates, new servers & help",
+            trailing = { Chevron() }) { openLink(context, com.aplay.tv.Config.TELEGRAM_URL) }
+        SettingRow(Icons.Filled.Email, OrangeTile, "Contact & Feedback", "Report a problem or suggest something",
+            trailing = { Chevron() }) { openLink(context, com.aplay.tv.Config.CONTACT_URL) }
+
         Text(
-            "APlay ${BuildConfig.VERSION_NAME}\nOnly add streams that you are allowed to watch.",
+            "Only add streams that you are allowed to watch.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
         )
     }
 
@@ -131,8 +211,56 @@ fun MoreScreen(model: AppViewModel, onPlay: (String, List<Stream>, Int) -> Unit)
 }
 
 @Composable
+private fun SectionHeader(text: String) {
+    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.width(4.dp).height(16.dp).clip(RoundedCornerShape(2.dp)).background(Accent))
+        Text(text, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 1.sp)
+    }
+}
+
+@Composable
+private fun SocialTile(modifier: Modifier, label: String, color: Color, icon: @Composable () -> Unit, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(GlassFill)
+            .border(1.dp, GlassStroke, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick).padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(color), contentAlignment = Alignment.Center) { icon() }
+        Text(label, fontSize = 11.sp, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun Chevron() {
+    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun OnOffBadge(on: Boolean) {
+    val c = if (on) GreenTile else MaterialTheme.colorScheme.onSurfaceVariant
+    Text(
+        if (on) "ON" else "OFF", color = c, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(c.copy(alpha = 0.16f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
+private fun Pill(text: String) {
+    Text(
+        text, color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(Accent.copy(alpha = 0.16f))
+            .border(1.dp, Accent.copy(alpha = 0.5f), RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
 private fun SettingRow(
     icon: ImageVector,
+    tint: Color,
     title: String,
     subtitle: String,
     trailing: @Composable () -> Unit = {},
@@ -140,15 +268,19 @@ private fun SettingRow(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = GlassFill),
         border = androidx.compose.foundation.BorderStroke(1.dp, GlassStroke),
     ) {
         Row(
-            Modifier.padding(14.dp),
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Icon(icon, contentDescription = null, tint = Accent)
+            Box(
+                Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(tint),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, contentDescription = null, tint = Color.White) }
             Column(Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -156,23 +288,6 @@ private fun SettingRow(
             trailing()
         }
     }
-}
-
-@Composable
-private fun SwitchRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    SettingRow(
-        icon = icon,
-        title = title,
-        subtitle = subtitle,
-        trailing = { Switch(checked = checked, onCheckedChange = onChange) },
-        onClick = { onChange(!checked) },
-    )
 }
 
 @Composable
