@@ -1,4 +1,4 @@
-Toffee    | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/bdix_tset.m3u
+Toffee    | https://raw.githubusercontent.com/sm-monirulislam/Toffee-Auto-Update/refs/heads/main/toffee_playlist.m3u
 Mixed 1   | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/new_isp.m3u
 Cloud     | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/mac_playlist.m3u
 BDIX      | https://raw.githubusercontent.com/sm-monirulislam/SM-IPTV/refs/heads/main/bdix_tset.m3u
